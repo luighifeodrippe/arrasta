@@ -4,6 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import type { AgentEvent, AuthStatus, Effort, ModelOption } from "../types";
 import { DATA_DIR, getSettings } from "./storage";
+import { CodexError, envFor, readAccount, requireChatGPTAccount } from "./codex-auth";
+
+export { CodexError } from "./codex-auth";
 
 /**
  * O Arrasta conversa com o ChatGPT através do Codex CLI oficial (pacote @openai/codex).
@@ -23,54 +26,9 @@ function codexCommand(): { cmd: string; prefix: string[] } {
 
 async function homeArgs(): Promise<{ home: string; args: string[]; isApp: boolean }> {
   const { codexHome } = await getSettings();
-  if (codexHome === "system") return { home: SYSTEM_HOME, args: [], isApp: false };
+  if (codexHome === "system") return { home: SYSTEM_HOME, args: ["-c", 'cli_auth_credentials_store="file"'], isApp: false };
   await fs.mkdir(APP_HOME, { recursive: true });
   return { home: APP_HOME, args: ["-c", 'cli_auth_credentials_store="file"'], isApp: true };
-}
-
-function envFor(home: string): NodeJS.ProcessEnv {
-  return { ...process.env, CODEX_HOME: home };
-}
-
-interface Account {
-  method: "chatgpt" | "apikey";
-  email: string | null;
-  name: string | null;
-  plan: string | null;
-}
-
-function jwtClaims(token: string): Record<string, unknown> | null {
-  try {
-    const payload = token.split(".")[1];
-    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-/** Lê só e-mail, nome e plano do login salvo. Os tokens nunca saem daqui. */
-async function readAccount(home: string): Promise<Account | null> {
-  try {
-    const raw = JSON.parse(await fs.readFile(path.join(home, "auth.json"), "utf8")) as {
-      OPENAI_API_KEY?: string | null;
-      tokens?: { id_token?: unknown } | null;
-    };
-    const idToken = raw.tokens?.id_token;
-    if (typeof idToken === "string") {
-      const claims = jwtClaims(idToken) ?? {};
-      const auth = (claims["https://api.openai.com/auth"] ?? {}) as Record<string, unknown>;
-      return {
-        method: "chatgpt",
-        email: typeof claims.email === "string" ? claims.email : null,
-        name: typeof claims.name === "string" ? claims.name : null,
-        plan: typeof auth.chatgpt_plan_type === "string" ? auth.chatgpt_plan_type : null,
-      };
-    }
-    if (raw.OPENAI_API_KEY) return { method: "apikey", email: null, name: null, plan: null };
-  } catch {
-    // Sem login salvo.
-  }
-  return null;
 }
 
 interface LoginState {
@@ -87,7 +45,7 @@ export async function authStatus(): Promise<AuthStatus> {
   const account = codexHome === "app" ? appAccount : systemAccount;
   const login = globalLogin.__arrastaLogin;
   return {
-    connected: Boolean(account),
+    connected: account?.method === "chatgpt",
     mode: codexHome,
     email: account?.email ?? null,
     name: account?.name ?? null,
@@ -176,14 +134,6 @@ export async function listModels(): Promise<ModelOption[]> {
   }
 }
 
-export class CodexError extends Error {
-  needsLogin: boolean;
-  constructor(message: string, needsLogin = false) {
-    super(message);
-    this.needsLogin = needsLogin;
-  }
-}
-
 export interface CodexUsage {
   inputTokens: number;
   cachedInputTokens: number | null;
@@ -215,6 +165,7 @@ interface ExecItem {
 export async function runCodex<T>({ prompt, schema, images = [], effort, webSearch, disableShell, signal, onEvent, onUsage }: RunOptions): Promise<T> {
   const settings = await getSettings();
   const { home, args: homeOverrides } = await homeArgs();
+  await requireChatGPTAccount(home);
   const work = await fs.mkdtemp(path.join(os.tmpdir(), "arrasta-"));
   const schemaFile = path.join(work, "schema.json");
   await fs.writeFile(schemaFile, JSON.stringify(schema));

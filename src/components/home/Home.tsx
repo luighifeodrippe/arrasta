@@ -168,6 +168,10 @@ export function Home() {
           <p className="mt-5 max-w-[560px] text-pretty text-[clamp(15px,1.6vw,17px)] leading-relaxed text-ink-2">
             Comece com uma ideia, prints ou um link acessível. O ChatGPT organiza o conteúdo e escreve no seu estilo. Você dá o acabamento.
           </p>
+          <p className="mt-4 text-[13.5px] leading-relaxed text-ink-2">
+            <strong className="font-medium text-ink">Sua conta do ChatGPT. Sem cobrança de API.</strong>
+            <span className="mt-1 block text-[12.5px] text-ink-3">Sem chave de API. O uso segue os limites do Codex na sua conta.</span>
+          </p>
 
           <GooeyTabs
             label="Como começar"

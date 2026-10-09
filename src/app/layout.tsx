@@ -31,7 +31,7 @@ const caveat = Caveat({ subsets: ["latin"], variable: "--font-caveat", display: 
 
 export const metadata: Metadata = {
   title: `${APP_NAME} — carrosséis na sua voz`,
-  description: "Recrie qualquer carrossel do Instagram na sua voz, com o ChatGPT. Open source e roda no seu computador.",
+  description: "Crie carrosséis na sua voz com sua conta do ChatGPT, sem chave nem cobrança de API separada. Código aberto para rodar no seu computador.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

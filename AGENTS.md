@@ -1,13 +1,15 @@
-# Arrasta · instruções para agentes
+# Arrasta AI · instruções para agentes
 
-Este repositório contém um editor local de carrosséis. Quando a pessoa enviar o link pedindo para começar, conduza a instalação e a personalização abaixo. Se ela pedir apenas revisão de código ou informação, respeite esse escopo.
+Este repositório contém o Arrasta AI, editor local de carrosséis. Quando a pessoa enviar o link pedindo para começar, conduza a instalação e a personalização abaixo. Se ela pedir apenas revisão de código ou informação, respeite esse escopo.
+
+Ao apresentar o app, explique: ele usa a própria conta do ChatGPT pelo Codex, sem chave nem cobrança de API separada nesse modo. O acesso, os modelos e os limites dependem da conta; não prometa uso ilimitado. A [demonstração pública](https://luighi.com/arrasta/) apresenta o editor; login e geração exigem a instalação local.
 
 ## Instalar e abrir
 
 1. Identifique onde seus comandos executam. Para instalar no computador da pessoa, é necessário terminal com acesso local autorizado. Um terminal na nuvem não é o computador dela. Sem acesso local, faça a entrevista e explique os comandos do README para ela executar; registre essa limitação.
 2. Reutilize uma instalação existente ou clone este repositório em uma pasta de projetos. Preserve alterações locais, `data/` e autenticações. Verifique Node.js 20.9+; prefira Node.js 24 para também rodar os testes. Se faltar o runtime, oriente a instalação adequada ao sistema, respeitando as permissões disponíveis.
-3. Na raiz do Arrasta, execute `npm run setup`. Só prossiga quando a instalação e o build terminarem com sucesso. Inicie `npm start` e verifique a resposta de `http://localhost:3737`. Se a porta estiver ocupada, identifique o serviço antes de tentar encerrá-lo.
-4. Abra o app. A pessoa deve concluir **Entrar com ChatGPT** no fluxo oficial; não peça senhas ou tokens no chat. Reutilize um login existente somente quando a pessoa escolher essa opção. Estar instalado e estar autenticado são estados diferentes.
+3. Na raiz do Arrasta AI, execute `npm run setup`. Só prossiga quando a instalação e o build terminarem com sucesso. Inicie `npm start` e verifique a resposta de `http://localhost:3737`. Se a porta estiver ocupada, identifique o serviço antes de tentar encerrá-lo.
+4. Abra o app local. A pessoa deve concluir **Entrar com ChatGPT** no fluxo oficial, usando uma conta com acesso ao Codex; não peça senhas ou tokens no chat. Reutilize um login existente somente quando a pessoa escolher essa opção. Estar instalado e estar autenticado são estados diferentes.
 
 ## Entender a pessoa
 
@@ -29,6 +31,7 @@ Confira o carrossel renderizado: texto legível, imagens, cortes, perfil, propor
 
 ## Preservação e manutenção
 
+- Use **Arrasta AI** como nome público. Preserve `arrasta` no nome do pacote, nos caminhos e nas chaves de dados existentes.
 - `data/` contém conteúdo pessoal e credenciais do Codex. Mantenha-a fora de commits, anexos e publicações; faça backups privados.
 - Mantenha o servidor em `127.0.0.1`. Publicar o código no GitHub não autoriza expor esta instalação na internet.
 - A geração envia os textos e imagens necessários à OpenAI. A sandbox somente leitura restringe gravações, mas não garante ausência de acesso de leitura a outros arquivos.

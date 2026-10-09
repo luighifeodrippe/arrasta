@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="Crie carrosséis na sua voz com sua própria conta do ChatGPT. Sem chave nem cobrança de API separada. Conheça o Arrasta AI e instale no seu computador.">
+    <title>Arrasta AI — carrosséis na sua voz</title>
+    <link rel="canonical" href="https://luighi.com/arrasta/">
+    <meta property="og:title" content="Arrasta AI — carrosséis na sua voz">
+    <meta property="og:description" content="Sua conta do ChatGPT. Sem cobrança de API. Código aberto para rodar no seu computador.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://luighi.com/arrasta/">
+    <meta property="og:image" content="https://luighi.com/arrasta/assets/editor.jpg">
+    <meta property="og:locale" content="pt_BR">
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+    <link rel="preload" href="./assets/wix-madefor-text-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <header class="header shell">
+      <a class="logo" href="./" aria-label="Arrasta AI — início">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="23.5" y="7.5" width="6" height="17" rx="2.6" fill="#fff" opacity=".26"/>
+          <rect x="2.5" y="4" width="18.5" height="24" rx="5" fill="#fff"/>
+          <path d="M7.6 16h8.6m-3.3-3.6L16.5 16l-3.6 3.6" stroke="#ff3500" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <span>Arrasta AI</span>
+      </a>
+      <a class="button button-small control" href="https://github.com/luighifeodrippe/arrasta">Ver no GitHub <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main id="conteudo">
+      <section class="hero shell" aria-labelledby="titulo">
+        <p class="badge"><span aria-hidden="true"></span>Open source · roda no seu computador</p>
+        <h1 id="titulo">Sua ideia vira carrossel.<br><span>Na sua voz.</span></h1>
+        <p class="account"><span>Sua conta do ChatGPT.</span> <span>Sem cobrança de API.</span></p>
+        <p class="intro">Comece com uma ideia, prints ou um link acessível. O ChatGPT organiza o conteúdo e escreve no seu estilo. Você dá o acabamento.</p>
+        <div class="actions">
+          <a class="button keycap" href="#instalar">Instalar no meu computador <span aria-hidden="true">→</span></a>
+          <a class="button control" href="#editor">Ver o editor</a>
+        </div>
+        <p class="account-note">Sem chave de API. O uso segue os limites e a disponibilidade do Codex na sua conta.</p>
+      </section>
+
+      <figure id="editor" class="editor shell">
+        <a class="editor-image" href="./assets/editor.jpg" aria-label="Abrir imagem do editor em tamanho original">
+          <img src="./assets/editor.jpg" width="1600" height="900" alt="Editor do Arrasta AI com painel de design, modelos, fontes e carrossel de exemplo com o perfil @seuperfil." fetchpriority="high">
+        </a>
+        <figcaption><span>Imagem do editor com conteúdo de exemplo.</span><span>Login, criação e exportação funcionam no app instalado localmente.</span></figcaption>
+      </figure>
+
+      <section id="instalar" class="installation shell" aria-labelledby="instalar-titulo">
+        <div class="installation-content">
+          <h2 id="instalar-titulo">Instale com um pedido.</h2>
+          <ol class="steps">
+            <li><span class="step-number" aria-hidden="true">1</span><div><h3>Abra o ChatGPT Work ou o Codex</h3><p>Use um agente com terminal e acesso autorizado ao seu computador.</p></div></li>
+            <li><span class="step-number" aria-hidden="true">2</span><div><h3>Cole o pedido abaixo</h3><p>Ele instala o app e ajuda a configurar seu perfil, sua voz e suas referências.</p></div></li>
+            <li><span class="step-number" aria-hidden="true">3</span><div><h3>Entre com sua conta do ChatGPT</h3><p>No app local, conclua o login oficial e crie seu primeiro carrossel.</p></div></li>
+          </ol>
+          <div class="prompt-box">
+            <div class="prompt-header"><label for="install-prompt">Pedido de instalação</label><button class="button button-small control" type="button" id="copy-prompt">Copiar pedido</button></div>
+            <textarea id="install-prompt" readonly spellcheck="false">Instale e abra o Arrasta AI no meu computador, usando minha própria conta do ChatGPT, sem configurar chave de API: https://github.com/luighifeodrippe/arrasta. Leia o AGENTS.md e siga o onboarding. Pergunte meu @ do Instagram e os @s que quero usar como referências de escrita; analise as amostras públicas disponíveis e configure minha voz. Depois pergunte apenas meus objetivos, gostos e o que faltar. Se o Instagram bloquear a leitura, me ajude com uma alternativa. Quero terminar com um primeiro carrossel revisado e exportado.</textarea>
+            <p class="copy-status" id="copy-status" role="status" aria-live="polite"></p>
+          </div>
+          <p class="local-note">Esta página é uma demonstração. Para usar a IA, instale o Arrasta AI localmente e conecte uma conta com acesso ao Codex. A assinatura e seus limites continuam valendo.</p>
+          <p class="help-links"><a href="https://github.com/luighifeodrippe/arrasta#instalação-manual">Ver instalação manual</a><a href="https://learn.chatgpt.com/docs/auth">Entender o login com ChatGPT</a></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer shell"><span>Arrasta AI · <a href="https://github.com/luighifeodrippe/arrasta/blob/main/LICENSE">MIT</a></span><span>Por <a href="https://luighi.com">Luighi Feodrippe</a> · <a href="https://github.com/luighifeodrippe/arrasta">GitHub</a></span></footer>
+  </body>
+</html>

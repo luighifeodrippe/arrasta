@@ -58,7 +58,7 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
     {
       id: "chatgpt",
       title: "Conecte o ChatGPT",
-      text: "É ele quem lê e escreve. Usa o seu plano, sem chave de API.",
+      text: "Use sua própria conta, sem chave nem cobrança de API. Valem os limites do Codex na sua conta.",
       done: auth.connected,
     },
     {

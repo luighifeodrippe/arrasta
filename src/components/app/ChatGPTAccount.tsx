@@ -221,7 +221,7 @@ export function LoginDialog() {
         description={
           pending
             ? "Abrimos a página de login da OpenAI numa nova aba. Assim que você confirmar, esta janela fecha sozinha."
-            : "O Arrasta trabalha com a sua conta do ChatGPT pelo Codex, da OpenAI. O login acontece na página da OpenAI e fica salvo só neste computador."
+            : "O Arrasta AI usa sua própria conta do ChatGPT pelo Codex, da OpenAI. O login acontece na página da OpenAI e fica salvo neste computador."
         }
         className="w-[min(440px,calc(100vw-32px))]"
       >
@@ -243,7 +243,7 @@ export function LoginDialog() {
         ) : (
           <div className="flex flex-col gap-3 pt-1">
             <ul className="mb-2 flex flex-col gap-2.5 text-[13.5px] text-ink-2">
-              {["Usa o seu plano do ChatGPT, sem chave de API", "Nada passa por servidores do Arrasta", "Você pode sair quando quiser"].map((t) => (
+              {["Sem chave nem cobrança de API separada", "Usa os limites do Codex na sua conta", "Sem servidor intermediário do Arrasta AI"].map((t) => (
                 <li key={t} className="flex items-center gap-2.5">
                   <Icon icon={Tick02Icon} className="size-4 text-ink-3" />
                   {t}

@@ -1,8 +1,8 @@
 {
   "name": "arrasta",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
-  "description": "Recrie qualquer carrossel do Instagram na sua voz, com o ChatGPT. Roda no seu computador.",
+  "description": "Arrasta AI: carrosséis na sua voz com sua conta do ChatGPT, sem chave de API. Roda no seu computador.",
   "license": "MIT",
   "scripts": {
     "setup": "node scripts/setup.mjs",

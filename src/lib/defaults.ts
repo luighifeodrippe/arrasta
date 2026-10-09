@@ -1,6 +1,6 @@
 import type { CarouselFormat, CarouselSource, Design, FontId, Profile, Project, RemixLevel, Slide, SlideImage, SlideKind, SlideSize, TemplateId, TextAlign, TextStyle, WritingSettings } from "./types";
 
-export const APP_NAME = "Arrasta";
+export const APP_NAME = "Arrasta AI";
 
 /** Largura real de exportação; a altura vem da proporção escolhida. */
 export const SLIDE_W = 1080;
