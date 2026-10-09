@@ -111,12 +111,25 @@ export function normalizeProfile(profile: Partial<Profile>): Profile {
     handle: typeof profile.handle === "string" ? profile.handle.replace(/^@+/, "").trim() : "",
     goal: typeof profile.goal === "string" ? profile.goal.slice(0, 500) : "",
     preferences: typeof profile.preferences === "string" ? profile.preferences.slice(0, 1200) : "",
+    voiceAnalysis: profile.voiceAnalysis && typeof profile.voiceAnalysis.handle === "string" && typeof profile.voiceAnalysis.analyzedAt === "string" ? {
+      handle: profile.voiceAnalysis.handle.replace(/^@+/, "").slice(0, 30),
+      analyzedAt: profile.voiceAnalysis.analyzedAt,
+      sampleCount: Math.min(6, Math.max(0, Number(profile.voiceAnalysis.sampleCount) || 0)),
+      imageCount: Math.min(4, Math.max(0, Number(profile.voiceAnalysis.imageCount) || 0)),
+      sourceUrls: Array.isArray(profile.voiceAnalysis.sourceUrls) ? profile.voiceAnalysis.sourceUrls.filter((url) => typeof url === "string" && /^https:\/\/www\.instagram\.com\/p\/[\w-]+\/$/.test(url)).slice(0, 6) : [],
+    } : undefined,
     styleReferences: references.filter((reference) => reference && typeof reference === "object").slice(0, 5).map((reference, index) => ({
       id: typeof reference.id === "string" && reference.id ? reference.id : `reference-${index}`,
       name: typeof reference.name === "string" ? reference.name.slice(0, 100) : "",
       focus: typeof reference.focus === "string" ? reference.focus.slice(0, 500) : "",
       samples: typeof reference.samples === "string" ? reference.samples.slice(0, 4000) : "",
       weight: Number.isFinite(reference.weight) ? Math.min(5, Math.max(1, Math.round(reference.weight))) : 3,
+      handle: typeof reference.handle === "string" ? reference.handle.replace(/^@+/, "").slice(0, 30) : "",
+      avatar: typeof reference.avatar === "string" ? reference.avatar : null,
+      guide: typeof reference.guide === "string" ? reference.guide.slice(0, 1800) : "",
+      analyzedAt: typeof reference.analyzedAt === "string" ? reference.analyzedAt : null,
+      sampleCount: Number.isFinite(reference.sampleCount) ? Math.min(6, Math.max(0, reference.sampleCount!)) : 0,
+      imageCount: Number.isFinite(reference.imageCount) ? Math.min(4, Math.max(0, reference.imageCount!)) : 0,
     })),
   };
 }

@@ -8,6 +8,9 @@ const HEADERS = {
   "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
 };
 
+export const PROFILE_SAMPLE_LIMITS = { captions: 6, captionChars: 1200, totalChars: 6000 } as const;
+const MAX_PROFILE_HTML_BYTES = 2 * 1024 * 1024;
+
 export interface InstagramMedia {
   url: string;
   isVideo: boolean;
@@ -30,9 +33,29 @@ export interface InstagramProfile {
   verified: boolean;
   followers: number | null;
   captions: string[];
+  images: string[];
+  sourceUrls: string[];
 }
 
 export class InstagramError extends Error {}
+
+/** Preserva a ordem do embed sem enviar legendas repetidas ou texto além do orçamento. */
+export function selectProfileCaptions(captions: string[]): string[] {
+  const selected: string[] = [];
+  const seen = new Set<string>();
+  let totalChars = 0;
+  for (const caption of captions) {
+    const sample = caption.trim().slice(0, PROFILE_SAMPLE_LIMITS.captionChars).trimEnd();
+    if (!sample || seen.has(sample)) continue;
+    const bounded = sample.slice(0, PROFILE_SAMPLE_LIMITS.totalChars - totalChars).trimEnd();
+    if (!bounded) break;
+    selected.push(bounded);
+    seen.add(sample);
+    totalChars += bounded.length;
+    if (selected.length === PROFILE_SAMPLE_LIMITS.captions || totalChars === PROFILE_SAMPLE_LIMITS.totalChars) break;
+  }
+  return selected;
+}
 
 export function parseShortcode(input: string): string | null {
   const text = input.trim();
@@ -50,15 +73,38 @@ export function parseHandle(input: string): string | null {
   return ["accounts", "direct", "explore", "p", "reel", "reels", "stories", "tv"].includes(normalized) ? null : normalized;
 }
 
-async function fetchText(url: string): Promise<string> {
-  let response: Response;
+async function readLimitedBody(response: Response, maxBytes: number, message: string): Promise<Buffer> {
+  if (!response.body) return Buffer.alloc(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
   try {
-    response = await fetch(url, { headers: HEADERS, redirect: "follow", signal: AbortSignal.timeout(20000) });
-  } catch {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return Buffer.concat(chunks, bytes);
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel();
+        throw new InstagramError(message);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function fetchText(url: string, maxBytes?: number): Promise<string> {
+  try {
+    const response = await fetch(url, { headers: HEADERS, redirect: "follow", signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw new InstagramError(`O Instagram respondeu ${response.status}. Tente de novo em instantes.`);
+    if (!maxBytes) return await response.text();
+    const data = await readLimitedBody(response, maxBytes, "A resposta do Instagram excedeu o limite de leitura do perfil.");
+    return data.toString("utf8");
+  } catch (error) {
+    if (error instanceof InstagramError) throw error;
     throw new InstagramError("Não consegui falar com o Instagram. Confira sua internet e tente de novo.");
   }
-  if (!response.ok) throw new InstagramError(`O Instagram respondeu ${response.status}. Tente de novo em instantes.`);
-  return response.text();
 }
 
 /** A página de embed guarda os dados do post num JSON dentro de uma string ("contextJSON"). */
@@ -94,6 +140,33 @@ function edges(value: unknown): Node[] {
 function captionOf(media: Node): string {
   const first = edges(media.edge_media_to_caption)[0];
   return typeof first?.text === "string" ? first.text : "";
+}
+
+function profileImages(media: Node[]): { images: string[]; posts: Set<Node> } {
+  const images: string[] = [];
+  const posts = new Set<Node>();
+  const addImage = (node: Node, post: Node): boolean => {
+    if (node.is_video || typeof node.display_url !== "string" || !/^https:\/\//i.test(node.display_url) || images.includes(node.display_url)) return false;
+    images.push(node.display_url);
+    posts.add(post);
+    return true;
+  };
+  let carousels = 0;
+  for (const post of media) {
+    let cards = 0;
+    for (const child of edges(post.edge_sidecar_to_children)) {
+      if (addImage(child, post)) cards += 1;
+      if (cards === 2 || images.length === 4) break;
+    }
+    if (cards) carousels += 1;
+    if (carousels === 2 || images.length === 4) break;
+  }
+  // Alguns embeds só expõem a capa, mesmo quando o post original é um carrossel.
+  for (const post of media) {
+    if (images.length === 4) break;
+    if (!edges(post.edge_sidecar_to_children).length) addImage(post, post);
+  }
+  return { images, posts };
 }
 
 function count(value: unknown): number | null {
@@ -173,7 +246,7 @@ export async function fetchProfile(input: string): Promise<InstagramProfile> {
   if (!handle) throw new InstagramError("Digite um @ válido.");
   let html: string;
   try {
-    html = await fetchText(`https://www.instagram.com/${handle}/embed/`);
+    html = await fetchText(`https://www.instagram.com/${handle}/embed/`, MAX_PROFILE_HTML_BYTES);
   } catch (error) {
     if (!(error instanceof InstagramError)) throw error;
     throw new InstagramError(`${error.message} Você pode preencher nome, foto e textos manualmente.`);
@@ -183,22 +256,35 @@ export async function fetchProfile(input: string): Promise<InstagramProfile> {
     throw new InstagramError("O Instagram não disponibilizou os dados desse perfil. Ele pode ser privado, estar indisponível ou ter a leitura bloqueada. Confira o @ ou preencha nome, foto e textos manualmente.");
   }
   const posts = Array.isArray(context.graphql_media) ? (context.graphql_media as { shortcode_media?: Node }[]) : [];
+  const media = posts.map((post) => post?.shortcode_media).filter((post): post is Node => Boolean(post) && typeof post === "object");
+  const captions = selectProfileCaptions(media.map(captionOf));
+  const visual = profileImages(media);
+  const sampledPosts = new Set(visual.posts);
+  const captionPosts = new Map<string, Node>();
+  for (const post of media) {
+    const sample = captionOf(post).trim().slice(0, PROFILE_SAMPLE_LIMITS.captionChars).trimEnd();
+    if (sample && !captionPosts.has(sample)) captionPosts.set(sample, post);
+  }
+  for (const post of [...captionPosts.values()].slice(0, captions.length)) sampledPosts.add(post);
+  const sourceUrls = [...new Set(media
+    .filter((post) => sampledPosts.has(post) && typeof post.shortcode === "string" && /^[A-Za-z0-9_-]{5,}$/.test(post.shortcode))
+    .map((post) => `https://www.instagram.com/p/${post.shortcode}/`))].slice(0, 6);
   return {
     username: String(context.username),
     fullName: typeof context.full_name === "string" ? context.full_name.trim() || null : null,
     avatarUrl: typeof context.profile_pic_url === "string" ? context.profile_pic_url.trim() || null : null,
     verified: Boolean(context.is_verified ?? context.verified),
     followers: typeof context.followers_count === "number" ? context.followers_count : null,
-    captions: [...new Set(posts
-      .map((p) => (p?.shortcode_media ? captionOf(p.shortcode_media).trim() : ""))
-      .filter(Boolean))],
+    captions,
+    images: visual.images,
+    sourceUrls,
   };
 }
 
-export async function downloadImage(url: string, userAgent = HEADERS["User-Agent"]): Promise<{ data: Buffer; type: string | null }> {
+export async function downloadImage(url: string, userAgent = HEADERS["User-Agent"], maxBytes = 8 * 1024 * 1024): Promise<{ data: Buffer; type: string | null }> {
   const response = await fetch(url, { headers: { "User-Agent": userAgent }, signal: AbortSignal.timeout(30000) });
   if (!response.ok) throw new InstagramError(`Não consegui baixar uma imagem (${response.status}).`);
   const type = response.headers.get("content-type");
   if (type && !type.startsWith("image/")) throw new InstagramError("O link da imagem não devolveu uma imagem.");
-  return { data: Buffer.from(await response.arrayBuffer()), type };
+  return { data: await readLimitedBody(response, maxBytes, "A imagem excedeu o limite de download."), type };
 }

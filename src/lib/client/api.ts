@@ -1,4 +1,4 @@
-import type { AgentEvent, AuthStatus, CarouselFormat, ModelOption, Profile, Project, Settings } from "../types";
+import type { AgentEvent, AuthStatus, CarouselFormat, InstagramImportResult, ModelOption, Profile, Project, Settings } from "../types";
 
 async function json<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
@@ -28,13 +28,8 @@ export const api = {
   saveSettings: (patch: Partial<Settings>) => fetch("/api/settings", put(patch)).then(json<{ settings: Settings }>),
   profile: () => fetch("/api/profile", { cache: "no-store" }).then(json<Profile>),
   saveProfile: (profile: Profile) => fetch("/api/profile", put(profile)).then(json<Profile>),
-  profileFromInstagram: (handle: string) =>
-    fetch("/api/profile/instagram", post({ handle })).then(
-      json<Pick<Profile, "handle" | "name" | "avatar" | "verified" | "followers" | "samples"> & {
-        imported: { name: boolean; avatar: boolean; captions: number };
-        notice: string;
-      }>,
-    ),
+  profileFromInstagram: (handle: string, refresh = false) =>
+    fetch("/api/profile/instagram", post({ handle, refresh })).then(json<InstagramImportResult>),
   projects: () => fetch("/api/projects", { cache: "no-store" }).then(json<Project[]>),
   project: (id: string) => fetch(`/api/projects/${id}`, { cache: "no-store" }).then(json<Project>),
   createProject: (body: { kind: "blank" } | { kind: "idea"; brief: string; formatId?: string | null } | { kind: "link"; url: string; formatId?: string | null }) =>

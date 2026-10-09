@@ -47,3 +47,15 @@ test("geração usa a mistura ponderada só quando há exemplos", () => {
   assert.doesNotMatch(prompt, /@sem_exemplos/);
   assert.match(prompt, /não copie frases, identidade ou histórias pessoais/);
 });
+
+test("guia mapeado substitui exemplos brutos nas próximas gerações", () => {
+  const profile = {
+    ...defaultProfile(), voice: "Voz própria mapeada", samples: "TEXTO_BRUTO_PROPRIO",
+    styleReferences: [{ id: "a", name: "Referência", focus: "", samples: "TEXTO_BRUTO_REFERENCIA", guide: `Guia salvo ${"r".repeat(1400)}`, weight: 3 }],
+  };
+  const prompt = createPrompt({ profile, writing: defaultWriting(), brief: "Ideia", instructions: "" });
+  assert.match(prompt, /Voz própria mapeada/);
+  assert.match(prompt, /Guia salvo/);
+  assert.doesNotMatch(prompt, /TEXTO_BRUTO_/);
+  assert.doesNotMatch(prompt, new RegExp("r".repeat(901)));
+});

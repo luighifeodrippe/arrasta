@@ -233,14 +233,15 @@ export function EditableText({
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 /**
- * A imagem do slide. No card selecionado ela pode ser arrastada para enquadrar e
- * ganha zoom com pinça no trackpad (ou ⌘/Ctrl + rolagem).
+ * Clique na imagem do card selecionado para enquadrar. Sem esse foco, arrastar
+ * continua movendo o card; a pinça só ajusta a imagem enquanto ela está focada.
  */
 export function ImageLayer({ image, edit, style }: { image: SlideImage; edit?: EditBinding; style?: CSSProperties }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const drag = useRef<{ x: number; y: number; fx: number; fy: number; ox: number; oy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [focused, setFocused] = useState(false);
   const zoom = image.zoom || 1;
   const live = useRef({ image, edit });
   live.current = { image, edit };
@@ -249,7 +250,7 @@ export function ImageLayer({ image, edit, style }: { image: SlideImage; edit?: E
     const el = boxRef.current;
     if (!el || !edit) return;
     const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
+      if (document.activeElement !== el || (!event.ctrlKey && !event.metaKey)) return;
       event.preventDefault();
       const current = live.current;
       const next = clamp((current.image.zoom || 1) * (1 - event.deltaY * 0.01), 1, 4);
@@ -260,7 +261,7 @@ export function ImageLayer({ image, edit, style }: { image: SlideImage; edit?: E
   }, [edit]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!edit || event.button !== 0) return;
+    if (!edit || event.button !== 0 || document.activeElement !== event.currentTarget) return;
     event.stopPropagation();
     event.preventDefault();
     const box = boxRef.current;
@@ -298,13 +299,26 @@ export function ImageLayer({ image, edit, style }: { image: SlideImage; edit?: E
   return (
     <div
       ref={boxRef}
+      tabIndex={edit ? 0 : undefined}
+      role={edit ? "group" : undefined}
+      aria-label={edit ? "Imagem do slide: clique para enquadrar, Esc para sair" : undefined}
+      data-slide-image=""
+      data-image-focused={edit && focused ? "true" : undefined}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); stop(); }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={stop}
       onPointerCancel={stop}
-      onClick={edit ? (event) => event.stopPropagation() : undefined}
+      onClick={edit ? (event) => { event.stopPropagation(); event.currentTarget.focus(); } : undefined}
+      onKeyDown={edit ? (event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          event.currentTarget.blur();
+        }
+      } : undefined}
       className={edit ? "group/image" : undefined}
-      style={{ position: "relative", overflow: "hidden", cursor: edit ? (dragging ? "grabbing" : "grab") : undefined, touchAction: edit ? "none" : undefined, ...style }}
+      style={{ position: "relative", overflow: "hidden", cursor: edit ? (dragging ? "grabbing" : "grab") : undefined, touchAction: edit ? "none" : undefined, ...style, outline: edit && focused ? "4px solid var(--accent)" : undefined, outlineOffset: -4 }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -331,7 +345,7 @@ export function ImageLayer({ image, edit, style }: { image: SlideImage; edit?: E
           className="pointer-events-none absolute left-1/2 top-[6%] -translate-x-1/2 rounded-full bg-black/70 px-[28px] py-[12px] text-[26px] font-medium text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover/image:opacity-100"
           style={{ fontFamily: "var(--font-inter)", whiteSpace: "nowrap", opacity: dragging ? 0 : undefined }}
         >
-          Arraste para enquadrar · pinça para zoom
+          {focused ? "Arraste para enquadrar · Esc para sair" : "Clique para enquadrar"}
         </span>
       )}
     </div>

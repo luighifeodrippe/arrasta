@@ -184,6 +184,12 @@ export class CodexError extends Error {
   }
 }
 
+export interface CodexUsage {
+  inputTokens: number;
+  cachedInputTokens: number | null;
+  outputTokens: number;
+}
+
 interface RunOptions {
   prompt: string;
   schema: object;
@@ -191,8 +197,11 @@ interface RunOptions {
   effort?: Effort;
   /** Deixa o ChatGPT abrir páginas da web (quando o site não entregou o texto). */
   webSearch?: boolean;
+  /** Análises de amostras não precisam executar comandos. */
+  disableShell?: boolean;
   signal?: AbortSignal;
   onEvent?: (event: AgentEvent) => void;
+  onUsage?: (usage: CodexUsage) => void;
 }
 
 interface ExecItem {
@@ -203,7 +212,7 @@ interface ExecItem {
 }
 
 /** Roda uma tarefa no ChatGPT e devolve o JSON no formato do schema pedido. */
-export async function runCodex<T>({ prompt, schema, images = [], effort, webSearch, signal, onEvent }: RunOptions): Promise<T> {
+export async function runCodex<T>({ prompt, schema, images = [], effort, webSearch, disableShell, signal, onEvent, onUsage }: RunOptions): Promise<T> {
   const settings = await getSettings();
   const { home, args: homeOverrides } = await homeArgs();
   const work = await fs.mkdtemp(path.join(os.tmpdir(), "arrasta-"));
@@ -236,6 +245,7 @@ export async function runCodex<T>({ prompt, schema, images = [], effort, webSear
     schemaFile,
   ];
   if (settings.model) args.push("--model", settings.model);
+  if (disableShell) args.push("--disable", "shell_tool");
   for (const image of images) args.push("--image", image);
   args.push("--cd", work, "-");
 
@@ -253,7 +263,7 @@ export async function runCodex<T>({ prompt, schema, images = [], effort, webSear
 
   const handleLine = (line: string) => {
     if (!line.trim()) return;
-    let event: { type: string; item?: ExecItem; error?: { message?: string }; message?: string };
+    let event: { type: string; item?: ExecItem; error?: { message?: string }; message?: string; usage?: { input_tokens?: number; cached_input_tokens?: number; output_tokens?: number } };
     try {
       event = JSON.parse(line);
     } catch {
@@ -264,6 +274,8 @@ export async function runCodex<T>({ prompt, schema, images = [], effort, webSear
       if (item.type === "agent_message" && item.text) finalText = item.text;
       if (item.type === "reasoning" && item.text) onEvent?.({ type: "thought", text: cleanThought(item.text) });
       if (item.type === "error" && item.message) onEvent?.({ type: "status", text: item.message });
+    } else if (event.type === "turn.completed" && typeof event.usage?.input_tokens === "number" && typeof event.usage.output_tokens === "number") {
+      onUsage?.({ inputTokens: event.usage.input_tokens, cachedInputTokens: event.usage.cached_input_tokens ?? null, outputTokens: event.usage.output_tokens });
     } else if (event.type === "turn.failed") {
       failure = event.error?.message ?? "O ChatGPT não conseguiu terminar.";
     } else if (event.type === "error") {

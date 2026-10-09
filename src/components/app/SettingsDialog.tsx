@@ -21,9 +21,11 @@ import { ThinkingOrb } from "thinking-orbs";
 import { Icon, type IconData } from "@/components/ui/icon";
 import { api, runAgent } from "@/lib/client/api";
 import { useApp, type SettingsTab } from "@/lib/client/app-store";
+import { emptyStyleReference, instagramHandle, mergeInstagramProfile, mergeInstagramReference } from "@/lib/client/instagram-mapping";
 import { DEFAULT_INSTRUCTIONS, defaultProfile, defaultWriting, uid } from "@/lib/defaults";
 import type { Effort, Profile, WritingSettings } from "@/lib/types";
 import { planLabel } from "./ChatGPTAccount";
+import { InstagramMapper, MappingEvidence } from "./InstagramMapper";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
 import { Input, Label, Textarea } from "../ui/field";
@@ -31,7 +33,7 @@ import { Segmented } from "../ui/segmented";
 import { Toggle } from "../ui/switch";
 
 const TABS: { value: SettingsTab; label: string; icon: IconData; title: string; description: string }[] = [
-  { value: "perfil", label: "Perfil", icon: UserCircleIcon, title: "Seu perfil nos slides", description: "Foto, nome e @ que aparecem nos carrosséis." },
+  { value: "perfil", label: "Perfil", icon: UserCircleIcon, title: "Seu perfil e sua escrita", description: "Informe seu @ para trazer sua identidade e aprender seu estilo." },
   { value: "voz", label: "Sua voz", icon: QuillWrite01Icon, title: "Sua voz", description: "Público, gostos e referências usados em cada carrossel." },
   { value: "escrita", label: "Escrita", icon: NoteEditIcon, title: "Como o ChatGPT escreve", description: "As instruções do redator e o formato dos textos." },
   { value: "formatos", label: "Formatos", icon: Layers01Icon, title: "Formatos de carrossel", description: "Estruturas que o ChatGPT segue ao criar: escolha uma na hora de colar o link." },
@@ -99,7 +101,7 @@ export function SettingsDialog() {
   const profileProps = {
     draft: profile ?? defaultProfile(),
     patch: (p: Partial<Profile>) => setProfile((d) => ({ ...(d ?? defaultProfile()), ...p })),
-    replace: (next: Profile) => setProfile(next),
+    update: (apply: (current: Profile) => Profile) => setProfile((current) => apply(current ?? defaultProfile())),
   };
 
   useEffect(() => {
@@ -160,37 +162,18 @@ export function SettingsDialog() {
 interface ProfileProps {
   draft: Profile;
   patch: (patch: Partial<Profile>) => void;
-  replace: (next: Profile) => void;
+  update: (apply: (current: Profile) => Profile) => void;
 }
 
-function ProfileTab({ draft, patch, replace }: ProfileProps) {
+function ProfileTab({ draft, patch, update }: ProfileProps) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [fetching, setFetching] = useState(false);
-  const [importNotice, setImportNotice] = useState("");
-  const [importError, setImportError] = useState("");
+  const mappingBaseline = useRef(draft);
 
   const uploadAvatar = async (file: File) => {
     try {
       patch({ avatar: (await api.upload("profile", file)).url });
     } catch (error) {
       toast.error((error as Error).message);
-    }
-  };
-
-  const fromInstagram = async () => {
-    if (!draft.handle.trim()) return;
-    setFetching(true);
-    setImportError("");
-    setImportNotice("");
-    try {
-      const data = await api.profileFromInstagram(draft.handle);
-      replace({ ...draft, handle: data.handle, name: data.imported.name ? data.name : draft.name || data.handle, verified: data.verified, followers: data.followers, avatar: data.avatar ?? draft.avatar, samples: data.samples || draft.samples });
-      setImportNotice(data.notice);
-      toast.success("Dados públicos disponíveis importados.");
-    } catch (error) {
-      setImportError((error as Error).message);
-    } finally {
-      setFetching(false);
     }
   };
 
@@ -239,32 +222,8 @@ function ProfileTab({ draft, patch, replace }: ProfileProps) {
           <Label htmlFor="st-name">Nome</Label>
           <Input id="st-name" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Seu nome" />
         </div>
-        <div>
-          <Label htmlFor="st-handle" hint={draft.followers ? `${compact.format(draft.followers)} seguidores` : undefined}>
-            @ no Instagram
-          </Label>
-          <div className="field flex h-10 items-center pl-3 pr-1">
-            <span className="text-[14px] text-ink-3">@</span>
-            <input
-              id="st-handle"
-              autoCapitalize="none"
-              autoComplete="off"
-              aria-invalid={Boolean(importError)}
-              aria-describedby="st-instagram-help"
-              value={draft.handle}
-              onChange={(e) => patch({ handle: e.target.value.replace(/^@+/, "").replace(/\s/g, "") })}
-              onKeyDown={(e) => e.key === "Enter" && fromInstagram()}
-              placeholder="seuperfil"
-              className="h-full min-w-0 flex-1 bg-transparent px-1 text-[14px] outline-none placeholder:text-ink-3"
-            />
-            <Button size="sm" variant="glass" className="h-8 rounded-[9px] px-2.5" onClick={fromInstagram} disabled={!draft.handle.trim() || fetching}>
-              {fetching ? "Buscando…" : "Buscar perfil"}
-            </Button>
-          </div>
-          <p id="st-instagram-help" className={cn("mt-2 text-[12px] leading-relaxed", importError ? "text-red-300" : "text-ink-3")} role={importError ? "alert" : "status"}>
-            {importError || importNotice || "Busca nome, foto e uma amostra de legendas públicas. Se o Instagram bloquear a leitura, preencha manualmente."}
-          </p>
-        </div>
+        <InstagramMapper handle={draft.handle} onHandleChange={(handle) => patch({ handle })} onStart={() => { mappingBaseline.current = draft; }} onMapped={(result) => update((current) => mergeInstagramProfile(current, result, mappingBaseline.current))} evidence={instagramHandle(draft.voiceAnalysis?.handle ?? "") === instagramHandle(draft.handle) ? draft.voiceAnalysis : undefined} />
+        {draft.followers ? <p className="text-[12px] text-ink-3">{compact.format(draft.followers)} seguidores</p> : null}
       </div>
 
       <Toggle checked={draft.verified} onChange={(verified) => patch({ verified })} label="Mostrar selo de verificado nos slides" />
@@ -289,29 +248,29 @@ function ProfileTab({ draft, patch, replace }: ProfileProps) {
   );
 }
 
-function VoiceTab({ draft, patch, replace }: ProfileProps) {
+function VoiceTab({ draft, patch, update }: ProfileProps) {
   const auth = useApp((s) => s.auth);
   const setLoginOpen = useApp((s) => s.setLoginOpen);
   const [learning, setLearning] = useState(false);
-  const [openReference, setOpenReference] = useState<string | null>(null);
+  const [referenceHandle, setReferenceHandle] = useState("");
   const references = draft.styleReferences ?? [];
+  const mappingBaseline = useRef(draft);
+  const referenceExists = references.some((reference) => instagramHandle(reference.handle || reference.name) === instagramHandle(referenceHandle));
 
   const learnVoice = async () => {
-    if (!draft.samples.trim()) {
-      toast("Cole textos seus em “Seus textos” para analisar a escrita.");
-      return;
-    }
+    if (!draft.samples.trim() || learning) return;
     if (!auth?.connected) {
       setLoginOpen(true);
       return;
     }
+    const baseline = draft;
     setLearning(true);
     try {
       const last = await runAgent({ task: "voice", samples: draft.samples, name: draft.name, handle: draft.handle }, () => undefined);
       if (last?.type === "done" && last.data) {
         const data = last.data as { voice: string; about: string; audience: string };
-        replace({ ...draft, voice: data.voice, about: draft.about || data.about, audience: draft.audience || data.audience });
-        toast.success("Guia baseado nos seus exemplos. Revise o que combina com você.");
+        update((current) => ({ ...current, voice: current.voice === baseline.voice ? data.voice : current.voice, about: current.about || data.about, audience: current.audience || data.audience }));
+        toast.success("Guia atualizado com seus textos.");
       } else if (last?.type === "error") {
         toast.error(last.message);
         if (last.needsLogin) setLoginOpen(true);
@@ -324,107 +283,89 @@ function VoiceTab({ draft, patch, replace }: ProfileProps) {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="st-about">Sobre o que você fala</Label>
-          <Input id="st-about" value={draft.about} onChange={(e) => patch({ about: e.target.value })} placeholder="IA aplicada, marketing…" />
-        </div>
-        <div>
-          <Label htmlFor="st-aud">Para quem</Label>
-          <Input id="st-aud" value={draft.audience} onChange={(e) => patch({ audience: e.target.value })} placeholder="Criadores, empreendedores…" />
-        </div>
-      </div>
-      <div>
-        <Label htmlFor="st-goal">O que você quer que o conteúdo provoque?</Label>
-        <Input id="st-goal" value={draft.goal ?? ""} maxLength={500} onChange={(e) => patch({ goal: e.target.value })} placeholder="Ensinar, gerar conversa, atrair clientes…" />
-      </div>
-      <div>
-        <Label htmlFor="st-preferences">O que você gosta — e o que quer evitar?</Label>
-        <Textarea id="st-preferences" rows={3} value={draft.preferences ?? ""} maxLength={1200} onChange={(e) => patch({ preferences: e.target.value })} placeholder="Gosto de exemplos práticos e humor seco. Evite tom de guru, promessas e frases prontas." />
-      </div>
-      <div className="relative">
-        <Label
-          htmlFor="st-voice"
-          hint={
-            <button onClick={learnVoice} disabled={learning} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-ink-2 transition-colors hover:text-ink disabled:opacity-50">
-              <Icon icon={AiMagicIcon} className="size-3.5" />
-              Analisar meus textos
-            </button>
-          }
-        >
-          Como você escreve
-        </Label>
-        <Textarea
-          id="st-voice"
-          rows={4}
-          value={draft.voice}
-          onChange={(e) => patch({ voice: e.target.value })}
-          placeholder={"- Tom direto e próximo\n- Frases curtas\n- Fecha sempre com uma pergunta"}
-        />
-        {learning && (
-          <div className="absolute inset-x-0 bottom-0 top-6 flex items-center justify-center gap-3 rounded-[14px] bg-[#141414]/90 text-[13.5px] text-ink-2 backdrop-blur-sm">
-            <ThinkingOrb state="composing" size={20} theme="dark" aria-hidden />
-            Analisando seus exemplos…
-          </div>
-        )}
-      </div>
-      <div>
-        <details className="group rounded-[12px] border border-line p-3">
-          <summary className="cursor-pointer text-[13px] font-medium">Seus textos <span className="font-normal text-ink-3">· {draft.samples.trim() ? "Exemplos salvos" : "Adicione exemplos"}</span></summary>
-          <div className="mt-3">
-            <Label htmlFor="st-samples">Legendas, roteiros ou posts que você escreveu</Label>
-            <Textarea id="st-samples" rows={5} value={draft.samples} onChange={(e) => patch({ samples: e.target.value })} placeholder="Cole dois ou três textos seus. Eles ajudam a reconhecer seu ritmo e vocabulário." />
-          </div>
-        </details>
-      </div>
+    <div className="flex min-w-0 flex-col gap-6">
       <section aria-labelledby="st-references-title">
-        <div className="flex items-center justify-between gap-3">
-          <h3 id="st-references-title" className="text-[13px] font-medium">Referências de escrita</h3>
-          <Button size="sm" variant="ghost" disabled={references.length >= 5} onClick={() => {
+        <h3 id="st-references-title" className="text-[14px] font-medium">Referências de escrita</h3>
+        <p className="mb-4 mt-1 text-[12.5px] leading-relaxed text-ink-3">Informe o @. A IA analisa a escrita e você escolhe a influência de cada perfil.</p>
+        <InstagramMapper
+          handle={referenceHandle}
+          onHandleChange={setReferenceHandle}
+          label="@ da referência"
+          buttonLabel={referenceExists ? "Mapear" : "Adicionar"}
+          canSubmit={references.length < 5 || referenceExists || references.some(emptyStyleReference)}
+          onMapped={(result) => {
             const id = uid();
-            patch({ styleReferences: [...references, { id, name: "", focus: "", samples: "", weight: 3 }] });
-            setOpenReference(id);
-          }}>
-            <Icon icon={PlusSignIcon} /> Adicionar
-          </Button>
-        </div>
-        <p className="mb-3 text-[12px] leading-relaxed text-ink-3">Combine até cinco referências. Cole exemplos e escolha o que aproveitar; só o @ não revela o estilo.</p>
-        <div className="space-y-2">
+            update((current) => ({ ...current, styleReferences: mergeInstagramReference(current.styleReferences ?? [], result, id) }));
+          }}
+        />
+        {references.length >= 5 && <p className="mt-2 text-[12px] text-ink-3">Cinco referências salvas. Remova uma para adicionar outro perfil; os @ salvos podem ser atualizados.</p>}
+        <div className="mt-4 space-y-3">
           {references.map((reference, index) => {
-            const update = (changes: Partial<typeof reference>) => patch({ styleReferences: references.map((item) => item.id === reference.id ? { ...item, ...changes } : item) });
+            const change = (changes: Partial<typeof reference>) => update((current) => ({ ...current, styleReferences: (current.styleReferences ?? []).map((item) => item.id === reference.id ? { ...item, ...changes } : item) }));
             return (
-              <details key={reference.id} open={openReference === reference.id} className="rounded-[12px] border border-line p-3">
-                <summary onClick={(event) => { event.preventDefault(); setOpenReference(openReference === reference.id ? null : reference.id); }} className="cursor-pointer text-[13px] font-medium">{reference.name || `Referência ${index + 1}`} <span className="font-normal text-ink-3">· {reference.samples.trim() ? `Influência ${reference.weight}/5` : "Faltam exemplos"}</span></summary>
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label htmlFor={`ref-name-${reference.id}`}>Nome ou @ da referência</Label>
-                    <Input id={`ref-name-${reference.id}`} value={reference.name} maxLength={100} onChange={(e) => update({ name: e.target.value })} placeholder="Ex.: @criador" />
+              <article key={reference.id} className="rounded-[14px] border border-line p-3.5">
+                <div className="flex items-center gap-2.5">
+                  {reference.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={reference.avatar} alt="" className="size-9 shrink-0 rounded-full object-cover" />
+                  ) : <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/[0.07] text-[13px] text-ink-2">{(reference.name || reference.handle || String(index + 1)).replace(/^@/, "").charAt(0).toUpperCase()}</span>}
+                  <div className="min-w-0 flex-1">
+                    <h4 className="truncate text-[13.5px] font-medium">{reference.name || `Referência ${index + 1}`}</h4>
+                    <p className="mt-0.5 text-[11.5px] text-ink-3">{reference.guide ? <MappingEvidence sampleCount={reference.sampleCount} imageCount={reference.imageCount} /> : reference.samples.trim() ? "Textos salvos" : "Análise pendente"}</p>
                   </div>
-                  <div>
-                    <Label htmlFor={`ref-focus-${reference.id}`}>O que você gosta nessa escrita?</Label>
-                    <Input id={`ref-focus-${reference.id}`} value={reference.focus} maxLength={500} onChange={(e) => update({ focus: e.target.value })} placeholder="Ganchos diretos, ritmo, exemplos, humor…" />
-                  </div>
-                  <div>
-                    <Label htmlFor={`ref-samples-${reference.id}`}>Textos de exemplo</Label>
-                    <Textarea id={`ref-samples-${reference.id}`} rows={4} maxLength={4000} value={reference.samples} onChange={(e) => update({ samples: e.target.value })} placeholder="Cole trechos de posts dessa referência. Eles orientam o estilo, sem copiar frases." />
-                  </div>
-                  <div>
-                    <Label htmlFor={`ref-weight-${reference.id}`} hint={`${reference.weight}/5`}>Influência na mistura</Label>
-                    <input id={`ref-weight-${reference.id}`} type="range" min={1} max={5} step={1} value={reference.weight} onChange={(e) => update({ weight: Number(e.target.value) })} className="h-6 w-full accent-white" />
-                    <div className="flex justify-between text-[11px] text-ink-3"><span>Sutil</span><span>Forte</span></div>
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => patch({ styleReferences: references.filter((item) => item.id !== reference.id) })}><Icon icon={Delete02Icon} /> Remover referência</Button>
+                  <Button size="icon-sm" variant="ghost" aria-label={`Remover ${reference.name || `referência ${index + 1}`}`} onClick={() => update((current) => ({ ...current, styleReferences: (current.styleReferences ?? []).filter((item) => item.id !== reference.id) }))}><Icon icon={Delete02Icon} /></Button>
                 </div>
-              </details>
+                <div className="mt-3">
+                  <Label htmlFor={`ref-weight-${reference.id}`} hint={`${reference.weight}/5`}>Influência na mistura</Label>
+                  <input id={`ref-weight-${reference.id}`} type="range" min={1} max={5} step={1} value={reference.weight} onChange={(e) => change({ weight: Number(e.target.value) })} className="h-6 w-full accent-white" />
+                  <div className="flex justify-between text-[11px] text-ink-3"><span>Sutil</span><span>Forte</span></div>
+                </div>
+                <details className="mt-3 text-[12.5px]">
+                  <summary className="cursor-pointer text-ink-2">Guia e ajustes opcionais</summary>
+                  <div className="mt-3 space-y-3">
+                    <div><Label htmlFor={`ref-name-${reference.id}`}>Nome</Label><Input id={`ref-name-${reference.id}`} value={reference.name} maxLength={100} onChange={(e) => change({ name: e.target.value })} /></div>
+                    {reference.handle && <Button size="sm" variant="ghost" onClick={() => setReferenceHandle(reference.handle!)}>Usar @{reference.handle} no mapeamento</Button>}
+                    {reference.guide && <div><Label htmlFor={`ref-guide-${reference.id}`}>Guia de escrita</Label><Textarea id={`ref-guide-${reference.id}`} rows={5} maxLength={1800} value={reference.guide} onChange={(e) => change({ guide: e.target.value })} /></div>}
+                    <div><Label htmlFor={`ref-focus-${reference.id}`} hint="Opcional">O que aproveitar</Label><Input id={`ref-focus-${reference.id}`} value={reference.focus} maxLength={500} onChange={(e) => change({ focus: e.target.value })} placeholder="Ganchos, ritmo, humor…" /></div>
+                    <details>
+                      <summary className="cursor-pointer text-ink-3">Textos de exemplo · opcional</summary>
+                      <div className="mt-3"><Label htmlFor={`ref-samples-${reference.id}`}>Amostra coletada ou textos seus</Label><Textarea id={`ref-samples-${reference.id}`} rows={4} maxLength={4000} value={reference.samples} onChange={(e) => change({ samples: e.target.value })} placeholder="Acrescente exemplos se quiser refinar o guia." /></div>
+                    </details>
+                  </div>
+                </details>
+              </article>
             );
           })}
         </div>
       </section>
-      <div>
-        <Label htmlFor="st-cta">Chamada final preferida</Label>
-        <Input id="st-cta" value={draft.cta} onChange={(e) => patch({ cta: e.target.value })} placeholder="Salva e me segue para mais…" />
-      </div>
+
+      <section aria-labelledby="st-own-voice-title" className="border-t border-line pt-5">
+        <h3 id="st-own-voice-title" className="mb-3 text-[14px] font-medium">Sua escrita</h3>
+        <InstagramMapper handle={draft.handle} onHandleChange={(handle) => patch({ handle })} label="Seu @ no Instagram" onStart={() => { mappingBaseline.current = draft; }} onMapped={(result) => update((current) => mergeInstagramProfile(current, result, mappingBaseline.current))} evidence={instagramHandle(draft.voiceAnalysis?.handle ?? "") === instagramHandle(draft.handle) ? draft.voiceAnalysis : undefined} />
+        {draft.voice && <details className="mt-3 rounded-[12px] border border-line p-3"><summary className="cursor-pointer text-[13px] text-ink-2">Revisar seu guia de escrita</summary><div className="mt-3"><Label htmlFor="st-voice">Como você escreve</Label><Textarea id="st-voice" rows={5} value={draft.voice} onChange={(e) => patch({ voice: e.target.value })} /></div></details>}
+      </section>
+
+      <details className="rounded-[14px] border border-line p-3.5">
+        <summary className="cursor-pointer text-[13px] font-medium">Seus gostos e ajustes <span className="font-normal text-ink-3">· opcional</span></summary>
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div><Label htmlFor="st-about">Sobre o que você fala</Label><Input id="st-about" value={draft.about} onChange={(e) => patch({ about: e.target.value })} placeholder="IA aplicada, marketing…" /></div>
+            <div><Label htmlFor="st-aud">Para quem</Label><Input id="st-aud" value={draft.audience} onChange={(e) => patch({ audience: e.target.value })} placeholder="Criadores, empreendedores…" /></div>
+          </div>
+          <div><Label htmlFor="st-goal">O que você quer provocar?</Label><Input id="st-goal" value={draft.goal ?? ""} maxLength={500} onChange={(e) => patch({ goal: e.target.value })} placeholder="Ensinar, gerar conversa, atrair clientes…" /></div>
+          <div><Label htmlFor="st-preferences">Do que você gosta — e o que evita?</Label><Textarea id="st-preferences" rows={3} value={draft.preferences ?? ""} maxLength={1200} onChange={(e) => patch({ preferences: e.target.value })} placeholder="Exemplos práticos, humor seco. Sem tom de guru ou frases prontas." /></div>
+          <div><Label htmlFor="st-cta">Chamada final preferida</Label><Input id="st-cta" value={draft.cta} onChange={(e) => patch({ cta: e.target.value })} placeholder="Salva e me segue para mais…" /></div>
+          {!draft.voice && <div><Label htmlFor="st-voice-manual">Guia de escrita manual</Label><Textarea id="st-voice-manual" rows={4} value={draft.voice} onChange={(e) => patch({ voice: e.target.value })} placeholder="Seu tom, ritmo e vocabulário." /></div>}
+          <details>
+            <summary className="cursor-pointer text-[13px] text-ink-2">Seus textos · opcional</summary>
+            <div className="mt-3 space-y-3">
+              <div><Label htmlFor="st-samples">Legendas, roteiros ou posts</Label><Textarea id="st-samples" rows={5} value={draft.samples} onChange={(e) => patch({ samples: e.target.value })} placeholder="Use seus textos para complementar o mapeamento." /></div>
+              <Button size="sm" disabled={learning || !draft.samples.trim()} onClick={() => void learnVoice()}>{learning ? <ThinkingOrb state="composing" size={20} theme="dark" aria-hidden /> : <Icon icon={AiMagicIcon} />}{learning ? "Analisando…" : "Analisar textos colados"}</Button>
+            </div>
+          </details>
+          <Button size="sm" variant="ghost" disabled={references.length >= 5} onClick={() => update((current) => ({ ...current, styleReferences: [...(current.styleReferences ?? []), { id: uid(), name: "Referência manual", focus: "", samples: "", weight: 3 }].slice(0, 5) }))}><Icon icon={PlusSignIcon} />Adicionar referência manual</Button>
+        </div>
+      </details>
     </div>
   );
 }

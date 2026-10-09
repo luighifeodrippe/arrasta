@@ -1,6 +1,6 @@
 {
   "name": "arrasta",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Recrie qualquer carrossel do Instagram na sua voz, com o ChatGPT. Roda no seu computador.",
   "license": "MIT",

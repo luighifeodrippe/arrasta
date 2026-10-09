@@ -11,17 +11,13 @@ Este repositório contém um editor local de carrosséis. Quando a pessoa enviar
 
 ## Entender a pessoa
 
-Faça uma conversa curta, com até três perguntas por rodada. Aproveite o que ela já contou. Comece por:
+Comece pelo @ da pessoa e pelos @s que ela quer usar como referências de escrita. Aproveite os nomes já fornecidos. Use a importação do app para coletar e analisar automaticamente as amostras públicas; cabe ao agente identificar tom, ritmo, estrutura e assuntos a partir do material acessível.
 
-- Qual é o @ do Instagram, sobre o que ela publica e o que quer alcançar?
-- Para quem escreve e o que esse público já sabe ou precisa entender?
-- Quais dois ou três posts, textos ou perfis representam o que ela gosta? O que agrada em cada um e o que prefere evitar?
+O mesmo fluxo atende ao perfil próprio e às referências. Com acesso local autorizado, `POST /api/profile/instagram` recebe `{ "handle": "usuario" }`; leia o contrato atual da rota antes de consumir a resposta. Ela devolve dados e o resultado da análise, mas não salva o perfil: aplique o retorno pela interface ou atualize o estado preservando os outros campos. Consulte os limites e o cache em [Instagram e referências](README.md#instagram-e-referências). Reutilize o guia retornado, inclusive quando vier do cache; não rode uma segunda análise para resumir o que já está pronto.
 
-Depois complete somente o que faltar: tom (direto, didático, bem-humorado etc.), profundidade, idioma, uso de emojis, palavras indesejadas, chamada final e preferências visuais de cor, fonte, foto e densidade. Peça exemplos próprios quando possível. Se houver várias referências, identifique o atributo de cada uma para compor uma voz própria, sem prometer imitação perfeita.
+Confira o material efetivamente recebido. Se faltar login, conduza o fluxo oficial e retome; os dados públicos importados continuam úteis. Se a fonte estiver bloqueada ou não trouxer material suficiente, explique o que faltou e aceite textos ou prints fornecidos pela pessoa. Nunca invente conteúdo do perfil nem contorne acesso privado.
 
-Para o @, tente a importação pública do app quando houver autorização para usá-lo. Ela pode trazer nome, foto e uma amostra de legendas; não garante o histórico completo nem métricas privadas. Confira o retorno e relate o que veio. Se falhar ou vier incompleto, aceite nome, foto e textos fornecidos pela pessoa. Nunca invente conteúdo do perfil nem contorne acesso privado.
-
-Resuma o perfil editorial e a direção visual em poucas linhas, deixando explícitas as preferências ainda desconhecidas. Aplique o que já estiver definido; peça uma escolha apenas quando uma decisão material continuar aberta.
+Mostre uma síntese curta do que identificou e pergunte somente o que a amostra não decide: objetivo do conteúdo, público desejado, gosto pessoal, atributos a aproveitar de cada referência e preferências visuais. Faça até três perguntas por rodada. Idioma, emojis, palavras indesejadas e chamada final só precisam de perguntas se ainda houver uma escolha relevante em aberto. Aplique as respostas no perfil e nos pesos das referências; uma hipótese sobre o público não substitui a intenção da pessoa.
 
 ## Personalizar e validar
 

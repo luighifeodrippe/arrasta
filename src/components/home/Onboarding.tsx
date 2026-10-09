@@ -1,12 +1,12 @@
 "use client";
 
-import { AtIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Tick02Icon } from "@hugeicons/core-free-icons";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { ThinkingOrb } from "thinking-orbs";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { useApp } from "@/lib/client/app-store";
+import { instagramHandle, mergeInstagramProfile } from "@/lib/client/instagram-mapping";
+import { InstagramMapper } from "../app/InstagramMapper";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
 import { Icon } from "@/components/ui/icon";
@@ -42,9 +42,8 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
   const [dismissed, setDismissed] = useState(false);
   const [skipVoice, setSkipVoice] = useState(false);
   const [writingSeen, setWritingSeen] = useState(false);
-  const [handle, setHandle] = useState("");
-  const [learning, setLearning] = useState<string | null>(null);
-  const [importError, setImportError] = useState("");
+  const [handle, setHandle] = useState<string | null>(null);
+  const mappingBaseline = useRef(profile);
 
   useEffect(() => {
     setMounted(true);
@@ -64,15 +63,15 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
     },
     {
       id: "voice",
-      title: "Traga seu perfil",
-      text: "Busque nome, foto e algumas legendas públicas pelo @. A leitura depende do que o Instagram disponibilizar.",
-      done: Boolean(profile.handle.trim()) || skipVoice,
+      title: "Mapeie seu perfil",
+      text: "Informe seu @. A IA busca seu perfil e aprende sua escrita com os conteúdos públicos disponíveis.",
+      done: Boolean(profile.voice.trim() && profile.voiceAnalysis?.analyzedAt && instagramHandle(profile.voiceAnalysis.handle) === instagramHandle(profile.handle)) || skipVoice,
     },
     {
       id: "writing",
-      title: "Defina sua voz",
-      text: "Sobre o que você fala, para quem, o que quer provocar e quais estilos admira. Seus exemplos deixam o texto mais próximo de você.",
-      done: Boolean(profile.about.trim() && (profile.voice.trim() || profile.preferences?.trim())) || writingSeen,
+      title: "Ajuste ao seu gosto",
+      text: "Combine outros perfis como referência ou ajuste seus gostos. Seu guia já está pronto para usar.",
+      done: writingSeen,
     },
     {
       id: "link",
@@ -84,22 +83,6 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
   if (steps.every((s) => s.done)) return null;
   const current = steps.find((s) => !s.done)?.id;
   const doneCount = steps.filter((s) => s.done).length;
-
-  const learn = async () => {
-    if (!handle.trim()) return;
-    setImportError("");
-    try {
-      setLearning("Buscando dados públicos");
-      const data = await api.profileFromInstagram(handle);
-      const next = { ...profile, handle: data.handle, name: data.imported.name ? data.name : profile.name || data.handle, avatar: data.avatar ?? profile.avatar, verified: data.verified, followers: data.followers, samples: data.samples || profile.samples };
-      setProfile(await api.saveProfile(next));
-      toast.success(data.notice);
-    } catch (error) {
-      setImportError((error as Error).message);
-    } finally {
-      setLearning(null);
-    }
-  };
 
   return (
     <motion.div
@@ -161,50 +144,22 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                               Entrar com ChatGPT
                             </Button>
                           )}
-                          {step.id === "voice" &&
-                            (learning ? (
-                              <span className="flex h-8 items-center gap-2.5 text-[13px] text-ink-2">
-                                <ThinkingOrb state="composing" size={20} theme="dark" aria-hidden />
-                                <span className="arrasta-shimmer-text">{learning}…</span>
-                              </span>
-                            ) : (
-                              <>
-                                <form
-                                  onSubmit={(e) => {
-                                    e.preventDefault();
-                                    void learn();
-                                  }}
-                                  className="field flex h-8 items-center pl-2.5 pr-1"
-                                >
-                                  <Icon icon={AtIcon} className="size-3.5 text-ink-3" />
-                                  <input
-                                    value={handle}
-                                    onChange={(e) => setHandle(e.target.value.replace(/^@+/, ""))}
-                                    placeholder="seuperfil"
-                                    aria-label="Seu @ do Instagram"
-                                    aria-invalid={Boolean(importError)}
-                                    aria-describedby={importError ? "onboarding-instagram-error" : undefined}
-                                    autoCapitalize="none"
-                                    autoComplete="off"
-                                    className="h-full w-36 bg-transparent px-1.5 text-[13px] outline-none placeholder:text-ink-3"
-                                  />
-                                </form>
-                                <Button size="sm" variant="primary" onClick={learn} disabled={!handle.trim()}>
-                                  Buscar perfil
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => openSettings("perfil")}>Preencher manualmente</Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    writeFlag(SKIP_VOICE_KEY);
-                                    setSkipVoice(true);
-                                  }}
-                                >
-                                  Agora não
-                                </Button>
-                              </>
-                            ))}
+                          {step.id === "voice" && <div className="w-full space-y-2">
+                            <InstagramMapper
+                              handle={handle ?? profile.handle}
+                              onHandleChange={setHandle}
+                              onStart={() => { mappingBaseline.current = useApp.getState().profile; }}
+                              onMapped={async (result) => {
+                                const currentProfile = useApp.getState().profile;
+                                if (!currentProfile || !mappingBaseline.current) return;
+                                const next = mergeInstagramProfile(currentProfile, result, mappingBaseline.current);
+                                const saved = await api.saveProfile(next);
+                                const latest = useApp.getState().profile;
+                                setProfile(latest === currentProfile ? saved : latest ? mergeInstagramProfile(latest, result, mappingBaseline.current) : saved);
+                              }}
+                            />
+                            <Button size="sm" variant="ghost" onClick={() => { writeFlag(SKIP_VOICE_KEY); setSkipVoice(true); }}>Agora não</Button>
+                          </div>}
                           {step.id === "writing" && (
                             <>
                               <Button
@@ -212,9 +167,11 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                                 size="sm"
                                 onClick={() => {
                                   openSettings("voz");
+                                  writeFlag(WRITING_KEY);
+                                  setWritingSeen(true);
                                 }}
                               >
-                                Definir minha voz
+                                Ajustar minha voz
                               </Button>
                               <Button
                                 size="sm"
@@ -234,7 +191,6 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                             </Button>
                           )}
                         </div>
-                        {step.id === "voice" && importError && <p id="onboarding-instagram-error" role="alert" className="mt-2 text-[12px] leading-relaxed text-red-300">{importError} Você pode preencher o perfil manualmente.</p>}
                       </motion.div>
                     )}
                   </AnimatePresence>

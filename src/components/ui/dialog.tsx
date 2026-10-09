@@ -55,7 +55,7 @@ export function DialogContent({
             </D.Close>
           )}
         </div>
-        <div className={cn("min-h-0 flex-1 overflow-y-auto px-6 pt-3", footer ? "pb-5" : "pb-6")}>{children}</div>
+        <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-none px-6 pt-3", footer ? "pb-5" : "pb-6")}>{children}</div>
         {footer && <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-6 py-4">{footer}</div>}
       </D.Content>
     </D.Portal>

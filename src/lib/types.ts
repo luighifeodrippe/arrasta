@@ -163,6 +163,38 @@ export interface StyleReference {
   samples: string;
   /** Influência relativa de 1 a 5; só vale quando há textos de exemplo. */
   weight: number;
+  /** Perfil público que forneceu a amostra; vazio em referências manuais antigas. */
+  handle?: string;
+  avatar?: string | null;
+  guide?: string;
+  analyzedAt?: string | null;
+  sampleCount?: number;
+  imageCount?: number;
+}
+
+export interface InstagramAnalysis {
+  status: "ready" | "needs_login" | "unavailable";
+  guide: string;
+  about: string;
+  audience: string;
+  analyzedAt: string | null;
+  reused: boolean;
+  sampleCount: number;
+  imageCount: number;
+  sourceUrls: string[];
+  message: string;
+}
+
+export interface InstagramImportResult {
+  handle: string;
+  name: string;
+  avatar: string | null;
+  verified: boolean;
+  followers: number | null;
+  samples: string;
+  imported: { name: boolean; avatar: boolean; captions: number };
+  analysis: InstagramAnalysis;
+  notice: string;
 }
 
 export interface Profile {
@@ -179,6 +211,13 @@ export interface Profile {
   goal?: string;
   preferences?: string;
   styleReferences?: StyleReference[];
+  voiceAnalysis?: {
+    handle: string;
+    analyzedAt: string;
+    sampleCount: number;
+    imageCount: number;
+    sourceUrls: string[];
+  };
 }
 
 /** Quanto a recriação muda o original. */

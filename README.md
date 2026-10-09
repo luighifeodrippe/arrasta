@@ -8,7 +8,7 @@ Crie carrosséis a partir de ideias, imagens e links acessíveis. Ajuste a escri
 
 Envie o link deste repositório ao seu agente com este pedido:
 
-> Instale e abra o Arrasta para mim: https://github.com/luighifeodrippe/arrasta. Leia o AGENTS.md e siga o onboarding. Entenda meu público, meu jeito de escrever e minhas referências visuais antes de personalizar. Pergunte meu @ do Instagram e tente importar os dados públicos disponíveis; se não conseguir, me ajude a preencher. Quero terminar com um primeiro carrossel revisado e exportado.
+> Instale e abra o Arrasta para mim: https://github.com/luighifeodrippe/arrasta. Leia o AGENTS.md e siga o onboarding. Pergunte meu @ do Instagram e os @s que quero usar como referências de escrita; analise as amostras públicas disponíveis e configure minha voz. Depois pergunte apenas meus objetivos, gostos e o que faltar. Se o Instagram bloquear a leitura, me ajude com uma alternativa. Quero terminar com um primeiro carrossel revisado e exportado.
 
 O [AGENTS.md](AGENTS.md) contém as instruções para instalação, entrevista e validação. A execução automática depende de o agente ter terminal e acesso ao computador onde o app vai rodar. No ChatGPT Work, o acesso local depende do app, da conta e das permissões disponíveis; uma tarefa na nuvem não ganha acesso ao computador só porque está aberta no desktop. Sem essas ferramentas, o agente pode conduzir a entrevista e orientar a instalação manual. [Documentação oficial do ChatGPT Work](https://learn.chatgpt.com/docs/enterprise/chatgpt-work-local-security).
 
@@ -38,7 +38,7 @@ Encerre a instância anterior antes de iniciar novamente. Preserve a pasta `data
 ## O que você pode fazer
 
 - Criar de uma ideia, enviar prints ou usar um link de Instagram, YouTube, X ou artigo, quando a fonte permitir a leitura.
-- Ensinar sua voz com exemplos, público, assuntos e palavras a evitar; combinar referências de escrita escolhendo o atributo e o peso de cada uma.
+- Analisar seu perfil e referências de escrita pelo @, gerar guias de voz e combinar influências escolhendo o atributo e o peso de cada uma.
 - Guardar links e textos em um banco local para transformar em carrosséis depois.
 - Usar formatos como storytelling, dicas, passo a passo e mitos e verdades, ou escrever suas próprias instruções.
 - Editar textos direto nos cards, formatar trechos, trocar fontes, cores, imagens e proporção; escolher modelos como Perfil, Editorial, Notas, Revista, Pôster e Caderno.
@@ -48,9 +48,13 @@ Encerre a instância anterior antes de iniciar novamente. Preserve a pasta `data
 
 ## Instagram e referências
 
-Ao informar um @ público, o Arrasta tenta ler nome, foto, selo, contagem de seguidores e legendas expostas pela página de incorporação do Instagram. A disponibilidade varia: a página pode bloquear a leitura, retornar poucos posts ou não trazer foto e legendas. O importador não usa sua senha do Instagram.
+Informe seu @ ou o @ de uma referência de escrita. O Arrasta tenta buscar nome, foto, selo, contagem de seguidores e uma amostra pública: até seis legendas, limitadas a 6.000 caracteres no total, e até quatro imagens dos primeiros cards de carrosséis disponíveis. Com o ChatGPT conectado, faz uma análise breve e monta o guia de voz automaticamente. Depois você ajusta o que quer aproveitar, a influência de cada referência, seus gostos e seu objetivo.
 
-As legendas disponíveis são uma amostra para orientar a escrita. Elas não representam uma análise de todo o perfil, acesso a métricas privadas ou uma cópia perfeita do estilo. Você pode complementar com textos próprios e exemplos de vários autores, indicando o que gosta em cada um: ritmo, humor, clareza, estrutura ou profundidade.
+Os resultados ficam em cache local por sete dias. Ao atualizar uma fonte, uma amostra idêntica reutiliza o guia para o mesmo modelo, evitando repetir a análise. Esses limites reduzem a entrada enviada ao modelo; não são uma promessa de quantidade fixa de tokens ou tempo de resposta.
+
+O Instagram pode bloquear a leitura ou entregar uma amostra incompleta. O app informa o que conseguiu importar; sem acesso suficiente, você pode fornecer nome, foto, textos ou prints. Sem login do ChatGPT, os dados públicos disponíveis ainda podem ser importados, mas a análise fica pendente. O importador não usa sua senha do Instagram.
+
+A amostra não representa todo o histórico, métricas privadas ou uma cópia perfeita do estilo. As referências ajudam a compor uma voz própria, aproveitando ritmo, humor, clareza, estrutura ou profundidade.
 
 Use materiais que você pode reutilizar. Revise fatos, citações, marcas e imagens antes de publicar. Reescrever não transfere direitos sobre o material de origem.
 

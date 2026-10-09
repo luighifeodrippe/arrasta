@@ -120,6 +120,7 @@
 html {
   background: var(--color-page);
   color-scheme: dark;
+  /* Bloqueia o efeito elástico da página, sem prender o gesto nos cards. */
   overscroll-behavior: none;
 }
 
@@ -127,7 +128,6 @@ html {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 0.16) transparent;
-  overscroll-behavior: none;
 }
 
 body {

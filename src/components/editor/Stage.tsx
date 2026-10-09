@@ -188,7 +188,16 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
       )}
       style={column ? undefined : { ["--strip" as string]: `${project.slides.length * (width + 20) + width * 0.5}px` }}
     >
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={() => {
+          // Um arraste iniciado sobre a imagem move o card e não deixa o enquadramento ativo depois.
+          const focused = document.activeElement;
+          if (focused instanceof HTMLElement && focused.matches("[data-slide-image]")) focused.blur();
+        }}
+        onDragEnd={onDragEnd}
+      >
         <SortableContext items={project.slides.map((s) => s.id)} strategy={column ? verticalListSortingStrategy : horizontalListSortingStrategy}>
           <div className={cn("flex", column ? "mx-auto flex-col gap-7" : "items-start gap-5 pb-6")} style={column ? { width } : undefined}>
             {project.slides.map((slide, index) => (
@@ -246,7 +255,6 @@ function SortableCard({
   const [editing, setEditing] = useState<string | null>(null);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: slide.id,
-    disabled: editing !== null,
   });
   const duplicateSlide = useEditor((s) => s.duplicateSlide);
   const removeSlide = useEditor((s) => s.removeSlide);
@@ -354,8 +362,8 @@ function SortableCard({
               onSelect();
             }
           }}
-          // Card não selecionado também arrasta pelo corpo; o selecionado é superfície de edição (arraste pela alça).
-          onPointerDown={selected ? undefined : (listeners?.onPointerDown as React.PointerEventHandler<HTMLDivElement> | undefined)}
+          // Texto, perfil e imagem focada isolam seus gestos. O restante do card sempre pode reordenar.
+          onPointerDown={listeners?.onPointerDown as React.PointerEventHandler<HTMLDivElement> | undefined}
           onDragOver={(event) => {
             if (!event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes(IMAGE_DRAG_TYPE)) return;
             event.preventDefault();
@@ -377,7 +385,8 @@ function SortableCard({
             "relative block w-full touch-none overflow-hidden rounded-[16px] outline-none transition-[box-shadow,transform] duration-200 ease-out",
             selected
               ? "shadow-[0_0_0_2px_rgb(255_255_255/0.9),0_24px_60px_-20px_rgb(0_0_0/0.9)]"
-              : "cursor-pointer shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_18px_44px_-24px_rgb(0_0_0/0.9)] hover:shadow-[0_0_0_1px_rgb(255_255_255/0.22),0_18px_44px_-24px_rgb(0_0_0/0.9)] focus-visible:shadow-[0_0_0_2px_rgb(255_255_255/0.5)]",
+              : "shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_18px_44px_-24px_rgb(0_0_0/0.9)] hover:shadow-[0_0_0_1px_rgb(255_255_255/0.22),0_18px_44px_-24px_rgb(0_0_0/0.9)] focus-visible:shadow-[0_0_0_2px_rgb(255_255_255/0.5)]",
+            "cursor-grab active:cursor-grabbing",
             flashed && !selected && "shadow-[0_0_0_2px_rgb(255_255_255/0.55),0_0_40px_-6px_rgb(255_255_255/0.35)]",
             isDragging && "scale-[1.02] cursor-grabbing shadow-[0_0_0_2px_rgb(255_255_255/0.9),0_40px_80px_-20px_rgb(0_0_0/0.95)]",
             dropping && "shadow-[0_0_0_2px_#ff3500]",
