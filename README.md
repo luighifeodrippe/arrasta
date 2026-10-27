@@ -1,20 +1,23 @@
 # Arrasta AI
 
-Carrosséis na sua voz, com sua própria conta do ChatGPT.
+**Carrosséis na sua voz, com sua conta do ChatGPT.**
 
-O Arrasta AI abre uma parte da operação NØFACE: a produção de carrosséis. Sua estrutura foi construída com Codex; com o ChatGPT Work, você vai da instalação e da configuração da sua voz ao primeiro carrossel.
+Transforme uma ideia, um texto, um link ou prints em um carrossel. Configure sua voz e referências, ajuste os cards por conversa ou diretamente no editor e baixe para publicar.
 
-**Sem chave de API e sem cobrança de API separada.** Ao entrar com ChatGPT, o Arrasta AI usa o acesso ao Codex da sua conta. Modelos, disponibilidade e limites dependem do seu plano; não é uso ilimitado. [Como funciona o login com ChatGPT](https://learn.chatgpt.com/docs/auth).
+[Começar](#começar) · [Ver o tutorial completo](https://luighi.com/noface/#tutorial) · [Instalação manual](#instalação-manual)
 
-Crie a partir de ideias, imagens e links acessíveis. Ajuste a escrita à sua voz, edite os cards e exporte para publicar. Código aberto, com licença MIT, para rodar no seu computador.
+![Editor atual do Arrasta AI: cards lado a lado, edição de texto e conversa com o ChatGPT.](preview/assets/telas/editor.webp)
 
-[Ver a página com o tutorial completo](https://luighi.com/noface/) · Cada função, passo a passo, com as telas do app. Para conectar sua conta e usar a IA, instale e rode o app localmente.
+O Arrasta abre uma parte da operação NØFACE: a produção de carrosséis. A estrutura foi construída com Codex; o ChatGPT Work conduz o fluxo, da instalação e da configuração da sua voz ao primeiro carrossel. É gratuito, de código aberto e roda no seu computador.
 
-![Editor do Arrasta AI com o modelo Pôster](docs/editor.jpg)
+## Começar
 
-## Começar com ChatGPT Work ou Codex
+1. Copie o prompt abaixo e cole no **ChatGPT Work ou no Codex do seu computador**.
+2. O agente instala o app e abre o Arrasta no navegador. Entre com sua conta do ChatGPT pelo login oficial.
+3. Informe seu perfil e suas referências. Crie o primeiro carrossel e ajuste o resultado antes de exportar.
 
-Copie este prompt e cole no ChatGPT Work ou no Codex do seu computador:
+<details>
+<summary><strong>Abrir o prompt completo de instalação</strong></summary>
 
 ```text
 Quero instalar o Arrasta AI no meu computador e terminar com o meu primeiro carrossel pronto. É um app gratuito e de código aberto: https://github.com/luighifeodrippe/arrasta
@@ -32,118 +35,90 @@ O guia de instalação está no próprio repositório, no arquivo AGENTS.md. Lei
 No fim, me diga o endereço do app, o que ficou configurado e onde está o arquivo exportado.
 ```
 
-O [AGENTS.md](AGENTS.md) contém as instruções para instalação, entrevista e validação. A execução automática depende de o agente ter terminal e acesso ao computador onde o app vai rodar. No ChatGPT Work, o acesso local depende do app, da conta e das permissões disponíveis; uma tarefa na nuvem não ganha acesso ao computador só porque está aberta no desktop. Sem essas ferramentas, o agente pode conduzir a entrevista e orientar a instalação manual. [Documentação oficial do ChatGPT Work](https://learn.chatgpt.com/docs/enterprise/chatgpt-work-local-security).
+</details>
 
-**Pelo celular:** o Arrasta AI precisa de um computador (Mac, Windows ou Linux). Uma tarefa comum do celular roda na nuvem e não alcança o seu computador. Para mandar o link pelo celular, conecte antes o celular ao app do ChatGPT no computador ([Codex no celular](https://learn.chatgpt.com/docs/mobile)), deixe o computador ligado e online e escolha o computador ao criar a tarefa. Para usar o app, abra [localhost:3737](http://localhost:3737) no navegador do próprio computador; é nele também que você conclui o login com o ChatGPT.
+O agente precisa de terminal com acesso ao computador onde o app vai rodar. Se estiver na nuvem, ele pode orientar a [instalação manual](docs/GUIA.md#instalação-manual). Para começar pelo celular, veja o [acesso ao computador](docs/GUIA.md#começar-pelo-celular).
+
+**Sem chave de API nem cobrança de API separada.** O editor usa o acesso ao Codex da sua conta do ChatGPT; valem os modelos, a disponibilidade e os limites do seu plano.
+
+## Do conteúdo ao carrossel
+
+### Comece com o que você já tem
+
+Cole um link acessível do Instagram, YouTube, X ou de um site. Você também pode escrever uma ideia, colar um texto, enviar prints ou começar em branco. Guarde links e textos no banco de conteúdos para transformar em carrosséis depois.
+
+![Tela inicial atual do Arrasta AI, com entrada por link, texto ou prints e o guia de primeiros passos.](docs/imagens/inicio.png)
+
+### Instagram e referências
+
+Use seu @, exemplos de textos seus e perfis de referência para configurar a escrita. Escolha o que quer aproveitar de cada referência e ajuste sua influência, seu público e suas preferências.
+
+<img src="preview/assets/telas/voz.webp" alt="Ajustes de voz: perfil próprio, referências de escrita e exemplos de textos." width="660">
+
+Se o Instagram bloquear a leitura, você pode colar legendas ou fornecer prints. [Entenda a importação e seus limites](docs/GUIA.md#instagram-e-referências).
+
+### Edite direto ou peça uma mudança
+
+Clique no texto para escrever e formatar. Troque fonte, cor, fundo, imagem e posição dos elementos, com desfazer e refazer. Na conversa, peça uma mudança no carrossel inteiro ou apenas no slide selecionado.
+
+![Barra de conversa do editor, com seleção de carrossel ou slide e um pedido para encurtar os títulos.](preview/assets/telas/pedir.webp)
+
+<details>
+<summary>Ver as opções de reescrita de um card</summary>
+
+<img src="preview/assets/telas/reescrever.webp" alt="Menu de reescrita com as opções Mais curto, Gancho mais forte, Mais simples, Outra versão e Corrigir erros." width="520">
+
+</details>
+
+### O mesmo conteúdo, nove visuais
+
+Os modelos mudam o visual do carrossel inteiro. Personalize fontes, cores e fundos. Escolha também um formato de conteúdo pronto ou escreva suas próprias instruções.
+
+<p>
+  <img src="preview/assets/modelos/perfil.webp" alt="Modelo Perfil: carrossel com nome, foto e texto sobre fundo preto." width="230">
+  <img src="preview/assets/modelos/revista.webp" alt="Modelo Revista: número grande, título em itálico e composição editorial." width="230">
+  <img src="preview/assets/modelos/caderno.webp" alt="Modelo Caderno: texto sobre fundo azul com linhas de caderno." width="230">
+</p>
+
+*Perfil, Revista e Caderno. [Veja os nove modelos](https://luighi.com/noface/#modelos).*
+
+### Confira o enquadramento
+
+Use as guias no editor e as prévias de Feed, Story, Explorar e Reels para conferir o conteúdo antes de publicar.
+
+<img src="preview/assets/telas/previa.webp" alt="Prévia do Explorar do Instagram com a capa na grade e a área de segurança marcada." width="420">
+
+### Baixe os cards e a legenda
+
+Exporte todos os cards ou apenas uma seleção. Escolha PNG ou ZIP, nas proporções 3:4 ou 4:5. O ZIP também leva a legenda pronta para copiar.
+
+<img src="preview/assets/telas/baixar.webp" alt="Janela de exportação com nove cards selecionáveis e o botão Baixar ZIP." width="480">
 
 ## Instalação manual
 
-Você precisa de cerca de **1 GB livre**, internet e acesso ao Codex pela conta do ChatGPT. Git é opcional.
-
-### macOS
-
-1. Abra o Spotlight com **Command + Espaço**, digite **Terminal** e pressione Enter.
-2. Baixe o **Node.js LTS** em [nodejs.org](https://nodejs.org) e instale. Feche e abra o Terminal; digite `node -v` e pressione Enter. Deve aparecer uma versão 20.9 ou mais nova. Para desenvolver e rodar os testes, use Node.js 24.
-3. Na [página do repositório](https://github.com/luighifeodrippe/arrasta), clique em **Code > Download ZIP**. Abra o ZIP para descompactar.
-4. No Terminal, digite `cd ` (com um espaço), arraste a pasta descompactada para a janela e pressione Enter.
-
-### Windows
-
-1. Abra o menu **Iniciar**, digite **Prompt de Comando** e abra o programa.
-2. Baixe o **Node.js LTS** em [nodejs.org](https://nodejs.org) e instale. Feche e abra o Prompt; digite `node -v` e pressione Enter. Deve aparecer uma versão 20.9 ou mais nova. Para desenvolver e rodar os testes, use Node.js 24.
-3. Na [página do repositório](https://github.com/luighifeodrippe/arrasta), clique em **Code > Download ZIP**. Clique com o botão direito no ZIP e escolha **Extrair tudo**.
-4. Abra a pasta extraída que contém `package.json`. Copie o caminho da barra de endereço do Explorador. No Prompt, digite `cd /d "CAMINHO"`, trocando `CAMINHO` pelo caminho copiado, e pressione Enter.
-
-Já usa Git? Em vez do ZIP, `git clone https://github.com/luighifeodrippe/arrasta.git` e `cd arrasta`.
-
-### Preparar e abrir (nos dois sistemas)
-
-Na pasta que contém `package.json`, execute uma linha por vez:
+Requer **Node.js 20.9+**, internet e uma conta do ChatGPT com acesso ao Codex. Para desenvolver e rodar os testes, use Node.js 24.
 
 ```bash
+git clone https://github.com/luighifeodrippe/arrasta.git
+cd arrasta
 npm run setup
 npm start
 ```
 
-O `npm run setup` prepara o app uma vez; espere terminar antes de executar `npm start`. Mantenha o terminal aberto enquanto usa o Arrasta. Para parar, pressione **Ctrl+C**. Para abrir outro dia, entre na mesma pasta com `cd` e execute `npm start` de novo.
+Abra [localhost:3737](http://localhost:3737) e escolha **Entrar com ChatGPT**. Mantenha o terminal aberto enquanto usa o app.
 
-Abra [localhost:3737](http://localhost:3737) e clique em **Entrar com ChatGPT**. A própria pessoa conclui o login oficial no navegador. Esse login usa o acesso ao Codex e os limites da sua conta do ChatGPT, sem cobrança de API separada. O login e a geração funcionam na instalação local; a demonstração pública não conecta sua conta.
-
-Para atualizar uma instalação feita com Git, sem alterações no código:
-
-```bash
-git pull --ff-only
-npm run setup
-npm start
-```
-
-Se você baixou o ZIP, baixe o ZIP novo, descompacte e mova para a pasta nova a pasta `data/` da versão antiga; depois execute `npm run setup` e `npm start` na pasta nova e não use mais a antiga.
-
-Encerre a instância anterior antes de iniciar novamente. Preserve a pasta `data/`, onde ficam seus projetos, ajustes e o login do ChatGPT.
-
-## O que você pode fazer
-
-- Criar de uma ideia, enviar prints ou usar um link de Instagram, YouTube, X ou artigo, quando a fonte permitir a leitura.
-- Analisar seu perfil e referências de escrita pelo @, gerar guias de voz e combinar influências escolhendo o atributo e o peso de cada uma.
-- Guardar links e textos em um banco local para transformar em carrosséis depois.
-- Usar formatos como storytelling, dicas, passo a passo e mitos e verdades, ou escrever suas próprias instruções.
-- Editar textos direto nos cards, formatar trechos, trocar fontes, cores, imagens e proporção; escolher modelos como Perfil, Editorial, Notas, Revista, Pôster e Caderno.
-- Pedir alterações na conversa, em um slide ou no carrossel, e restaurar versões anteriores.
-- Conferir prévias de Feed, Story, Explorar e Reels, com áreas aproximadas de enquadramento e dicas de composição.
-- Baixar todos os cards ou uma seleção, em PNG ou ZIP, preservando a numeração original. O ZIP inclui a legenda.
-
-## Instagram e referências
-
-Informe seu @ ou o @ de uma referência de escrita. O Arrasta AI tenta buscar nome, foto, selo, contagem de seguidores e uma amostra pública: até seis legendas, limitadas a 6.000 caracteres no total, e até quatro imagens dos primeiros cards de carrosséis disponíveis. Com o ChatGPT conectado, faz uma análise breve e monta o guia de voz automaticamente. Depois você ajusta o que quer aproveitar, a influência de cada referência, seus gostos e seu objetivo.
-
-Os resultados ficam em cache local por sete dias. Ao atualizar uma fonte, uma amostra idêntica reutiliza o guia para o mesmo modelo, evitando repetir a análise. Esses limites reduzem a entrada enviada ao modelo; não são uma promessa de quantidade fixa de tokens ou tempo de resposta.
-
-O Instagram pode bloquear a leitura ou entregar uma amostra incompleta. O app informa o que conseguiu importar; sem acesso suficiente, você pode fornecer nome, foto, textos ou prints. Sem login do ChatGPT, os dados públicos disponíveis ainda podem ser importados, mas a análise fica pendente. O importador não usa sua senha do Instagram.
-
-A amostra não representa todo o histórico, métricas privadas ou uma cópia perfeita do estilo. As referências ajudam a compor uma voz própria, aproveitando ritmo, humor, clareza, estrutura ou profundidade.
-
-Use materiais que você pode reutilizar. Revise fatos, citações, marcas e imagens antes de publicar. Reescrever não transfere direitos sobre o material de origem.
+[Instalar sem Git no macOS ou no Windows](docs/GUIA.md#instalação-manual) · [Como atualizar](docs/GUIA.md#preparar-e-abrir-nos-dois-sistemas) · [Resolver problemas](docs/GUIA.md#se-algo-der-errado)
 
 ## Dados e privacidade
 
-Projetos, imagens, perfil, formatos e ajustes ficam em `data/`. O login do Arrasta AI fica em `data/codex/`; você também pode escolher usar uma conta do Codex já conectada no computador. Para mudar a pasta de dados, configure `ARRASTA_DATA_DIR` antes de iniciar o app.
+- Projetos, configurações, imagens e login ficam em `data/`, no seu computador. Preserve essa pasta nas atualizações e mantenha-a fora de commits e publicações.
+- A geração envia os textos e imagens necessários à OpenAI pelo [Codex CLI oficial](https://github.com/openai/codex). A leitura de links consulta os respectivos serviços.
+- O app foi feito para uso pessoal local, em `127.0.0.1`. Rodar localmente não significa funcionar offline.
 
-O app usa o [Codex CLI oficial](https://github.com/openai/codex). Para gerar conteúdo, envia prompts, textos e imagens necessários à OpenAI; a leitura de links consulta os respectivos serviços. Rodar localmente não significa funcionar offline. O Arrasta AI não opera um servidor intermediário próprio.
+[Dados e privacidade em detalhe](docs/GUIA.md#dados-e-privacidade) · [Limites de leitura e das prévias](docs/GUIA.md#limites-das-fontes)
 
-As tarefas do redator usam uma pasta temporária e o modo de sandbox somente leitura do Codex. Isso restringe gravações, mas não equivale a impedir toda leitura de arquivos. Mantenha o app em `127.0.0.1`: ele foi desenvolvido para uso pessoal local e não oferece isolamento entre contas de uma instalação pública.
+## Desenvolvimento e licença
 
-Não publique nem anexe `data/`, arquivos `.env`, tokens ou logs de autenticação em issues. Faça backup de seus dados em um local privado.
+[Comandos de desenvolvimento](docs/GUIA.md#desenvolvimento) · [Como contribuir](CONTRIBUTING.md)
 
-## Limites das fontes
-
-- **Instagram:** apenas o que estiver acessível publicamente. Se falhar, envie prints ou cole o texto.
-- **YouTube:** utiliza legendas disponíveis, não faz uma transcrição própria do áudio. Se não houver legenda acessível, forneça o roteiro.
-- **X:** lê um post por vez; para textos longos, pode consultar o [FxTwitter](https://github.com/FixTweet/FxTwitter).
-- **Sites:** páginas com login, bloqueios ou conteúdo carregado por JavaScript podem não entregar o texto. A busca na web pode ajudar, sem garantia de recuperar o conteúdo.
-- **Prévias:** são aproximações de enquadramento. O Instagram pode mudar cortes e apresentação; confira o post no app antes de publicar.
-
-Carrosséis podem voltar a aparecer no feed começando por outro card, como explica [Adam Mosseri, do Instagram](https://www.instagram.com/reel/DBOeUmTSmIC/). Trate cada card como uma possível entrada para a história; não há garantia de reapresentação, alcance ou distribuição de todos os slides.
-
-## Desenvolvimento
-
-```bash
-npm ci
-npm run dev
-npm test
-npm run typecheck
-npm run build
-```
-
-Veja [como contribuir](CONTRIBUTING.md). Os componentes e pacotes de terceiros mantêm seus créditos em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## Licença
-
-[MIT](LICENSE) · Luighi Feodrippe.
-
-## Se algo der errado
-
-- **Porta 3737 ocupada:** provavelmente o Arrasta já está aberto em outra janela. Tente abrir [localhost:3737](http://localhost:3737). Se precisar de outra porta, execute `npx next start -H 127.0.0.1 -p 3738` na pasta do app e abra [localhost:3738](http://localhost:3738).
-- **A preparação parou ao baixar fontes:** confira a internet e execute `npm run setup` de novo.
-- **O login não volta para o app:** feche outra janela de login do Codex que esteja aberta e tente novamente.
-- **“Limite de uso”:** é o limite da sua conta do ChatGPT. Aguarde a renovação indicada no serviço.
-- **O Instagram bloqueou a leitura:** cole legendas na tela **Sua voz** ou envie prints.
+Licença [MIT](LICENSE): você pode usar, modificar e vender, preservando os avisos da licença. Os créditos de componentes e pacotes de terceiros estão em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
