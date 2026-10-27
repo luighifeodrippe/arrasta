@@ -1,12 +1,37 @@
-# Arrasta AI
+<a name="arrasta-ai"></a>
 
-**Carrosséis na sua voz, com sua conta do ChatGPT.**
+<p align="center">
+  <a href="https://luighi.com/noface/">
+    <img src="docs/midia/arrasta-ascii.svg" alt="Arrasta AI — marca em ASCII" width="860">
+  </a>
+</p>
+
+<h1 align="center">Carrosséis na sua voz.</h1>
+
+<p align="center">Do link ao post, com sua conta do ChatGPT.</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="docs/midia/licenca.svg" alt="Licença MIT" height="25"></a>
+  <a href="docs/GUIA.md#desenvolvimento"><img src="docs/midia/node.svg" alt="Node.js 20.9 ou mais novo" height="25"></a>
+  <a href="https://github.com/luighifeodrippe/arrasta/actions/workflows/ci.yml"><img src="https://github.com/luighifeodrippe/arrasta/actions/workflows/ci.yml/badge.svg?branch=main" alt="Verificações do projeto no GitHub Actions" height="25"></a>
+</p>
+
+<p align="center">
+  <a href="#começar"><strong>Começar</strong></a> ·
+  <a href="https://luighi.com/noface/#tutorial">Tutorial completo</a> ·
+  <a href="#instalação-manual">Instalação manual</a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-reduced-motion: reduce)" srcset="docs/midia/editor-demo.png">
+    <img src="docs/midia/editor-demo.gif" alt="Demonstração do editor: edição de um card, destaque de texto, troca de modelo e prévia do post." width="840">
+  </picture>
+</p>
+
+<p align="center"><sub>Edição manual, formatação e troca de visual em capturas reais do app.</sub></p>
 
 Transforme uma ideia, um texto, um link ou prints em um carrossel. Configure sua voz e referências, ajuste os cards por conversa ou diretamente no editor e baixe para publicar.
-
-[Começar](#começar) · [Ver o tutorial completo](https://luighi.com/noface/#tutorial) · [Instalação manual](#instalação-manual)
-
-![Editor atual do Arrasta AI: cards lado a lado, edição de texto e conversa com o ChatGPT.](preview/assets/telas/editor.webp)
 
 O Arrasta abre uma parte da operação NØFACE: a produção de carrosséis. A estrutura foi construída com Codex; o ChatGPT Work conduz o fluxo, da instalação e da configuração da sua voz ao primeiro carrossel. É gratuito, de código aberto e roda no seu computador.
 
@@ -74,13 +99,25 @@ Clique no texto para escrever e formatar. Troque fonte, cor, fundo, imagem e pos
 
 Os modelos mudam o visual do carrossel inteiro. Personalize fontes, cores e fundos. Escolha também um formato de conteúdo pronto ou escreva suas próprias instruções.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-reduced-motion: reduce)" srcset="docs/midia/modelos-demo.png">
+    <img src="docs/midia/modelos-demo.gif" alt="O mesmo card alternando entre os nove modelos: Perfil, Editorial, Foto, Minimal, Neon, Notas, Revista, Pôster e Caderno." width="460">
+  </picture>
+</p>
+
+<p align="center"><sub>Um conteúdo, nove visuais. <a href="https://luighi.com/noface/#modelos">Explore todos os modelos.</a></sub></p>
+
+<details>
+<summary>Comparar três modelos lado a lado</summary>
+
 <p>
   <img src="preview/assets/modelos/perfil.webp" alt="Modelo Perfil: carrossel com nome, foto e texto sobre fundo preto." width="230">
   <img src="preview/assets/modelos/revista.webp" alt="Modelo Revista: número grande, título em itálico e composição editorial." width="230">
   <img src="preview/assets/modelos/caderno.webp" alt="Modelo Caderno: texto sobre fundo azul com linhas de caderno." width="230">
 </p>
 
-*Perfil, Revista e Caderno. [Veja os nove modelos](https://luighi.com/noface/#modelos).*
+</details>
 
 ### Confira o enquadramento
 
