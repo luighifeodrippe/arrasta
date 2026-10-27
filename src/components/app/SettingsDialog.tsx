@@ -342,6 +342,10 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
       <section aria-labelledby="st-own-voice-title" className="border-t border-line pt-5">
         <h3 id="st-own-voice-title" className="mb-3 text-[14px] font-medium">Sua escrita</h3>
         <InstagramMapper handle={draft.handle} onHandleChange={(handle) => patch({ handle })} label="Seu @ no Instagram" onStart={() => { mappingBaseline.current = draft; }} onMapped={(result) => update((current) => mergeInstagramProfile(current, result, mappingBaseline.current))} evidence={instagramHandle(draft.voiceAnalysis?.handle ?? "") === instagramHandle(draft.handle) ? draft.voiceAnalysis : undefined} />
+        <div className="mt-4 space-y-3">
+          <div><Label htmlFor="st-samples">Ou cole textos seus</Label><Textarea id="st-samples" rows={6} value={draft.samples} onChange={(e) => patch({ samples: e.target.value })} placeholder="Cole 3 a 6 legendas, roteiros ou posts seus." /></div>
+          <Button size="sm" disabled={learning || !draft.samples.trim()} onClick={() => void learnVoice()}>{learning ? <ThinkingOrb state="composing" size={20} theme="dark" aria-hidden /> : <Icon icon={AiMagicIcon} />}{learning ? "Analisando…" : "Aprender minha voz"}</Button>
+        </div>
         {draft.voice && <details className="mt-3 rounded-[12px] border border-line p-3"><summary className="cursor-pointer text-[13px] text-ink-2">Revisar seu guia de escrita</summary><div className="mt-3"><Label htmlFor="st-voice">Como você escreve</Label><Textarea id="st-voice" rows={5} value={draft.voice} onChange={(e) => patch({ voice: e.target.value })} /></div></details>}
       </section>
 
@@ -356,13 +360,6 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
           <div><Label htmlFor="st-preferences">Do que você gosta — e o que evita?</Label><Textarea id="st-preferences" rows={3} value={draft.preferences ?? ""} maxLength={1200} onChange={(e) => patch({ preferences: e.target.value })} placeholder="Exemplos práticos, humor seco. Sem tom de guru ou frases prontas." /></div>
           <div><Label htmlFor="st-cta">Chamada final preferida</Label><Input id="st-cta" value={draft.cta} onChange={(e) => patch({ cta: e.target.value })} placeholder="Salva e me segue para mais…" /></div>
           {!draft.voice && <div><Label htmlFor="st-voice-manual">Guia de escrita manual</Label><Textarea id="st-voice-manual" rows={4} value={draft.voice} onChange={(e) => patch({ voice: e.target.value })} placeholder="Seu tom, ritmo e vocabulário." /></div>}
-          <details>
-            <summary className="cursor-pointer text-[13px] text-ink-2">Seus textos · opcional</summary>
-            <div className="mt-3 space-y-3">
-              <div><Label htmlFor="st-samples">Legendas, roteiros ou posts</Label><Textarea id="st-samples" rows={5} value={draft.samples} onChange={(e) => patch({ samples: e.target.value })} placeholder="Use seus textos para complementar o mapeamento." /></div>
-              <Button size="sm" disabled={learning || !draft.samples.trim()} onClick={() => void learnVoice()}>{learning ? <ThinkingOrb state="composing" size={20} theme="dark" aria-hidden /> : <Icon icon={AiMagicIcon} />}{learning ? "Analisando…" : "Analisar textos colados"}</Button>
-            </div>
-          </details>
           <Button size="sm" variant="ghost" disabled={references.length >= 5} onClick={() => update((current) => ({ ...current, styleReferences: [...(current.styleReferences ?? []), { id: uid(), name: "Referência manual", focus: "", samples: "", weight: 3 }].slice(0, 5) }))}><Icon icon={PlusSignIcon} />Adicionar referência manual</Button>
         </div>
       </details>

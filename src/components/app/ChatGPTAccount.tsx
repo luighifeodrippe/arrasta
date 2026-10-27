@@ -36,11 +36,11 @@ export function ChatGPTAccount({ compact = false }: { compact?: boolean }) {
   const auth = useApp((s) => s.auth);
   const setLoginOpen = useApp((s) => s.setLoginOpen);
 
-  if (!auth) return <div className={cn("rounded-[10px] bg-white/[0.04]", compact ? "size-[32px]" : "h-9 w-40")} aria-hidden />;
+  if (!auth) return <div className={cn("bg-white/[0.04]", compact ? "size-[32px] rounded-[10px]" : "home-account-placeholder h-9 rounded-full")} aria-hidden />;
   if (!auth.connected) {
     return (
-      <Button variant={compact ? "glass" : "primary"} size={compact ? "icon-sm" : "md"} aria-label="Entrar com ChatGPT" title="Entrar com ChatGPT" onClick={() => setLoginOpen(true)} className={compact ? undefined : "h-9 rounded-[11px] px-3.5 text-[13.5px]"}>
-        {compact ? <Icon icon={AiChat02Icon} /> : "Entrar com ChatGPT"}
+      <Button variant="glass" size={compact ? "icon-sm" : "md"} aria-label="Entrar com ChatGPT" title="Entrar com ChatGPT" onClick={() => setLoginOpen(true)} className={compact ? undefined : "home-pill home-account h-9 rounded-full px-4 text-[14px] font-medium"}>
+        {compact ? <Icon icon={AiChat02Icon} /> : <><span className="home-login-full">Entrar com ChatGPT</span><span className="home-login-short">Entrar</span></>}
       </Button>
     );
   }
@@ -66,12 +66,12 @@ function AccountMenu({ compact }: { compact: boolean }) {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button aria-label={`ChatGPT${plan ? ` ${plan}` : ""} · conectado`} title={`ChatGPT${plan ? ` ${plan}` : ""} · conectado`} className={cn("control relative flex h-9 items-center justify-center gap-2 rounded-[10px] pl-2.5 pr-3 text-[13.5px] text-ink transition-colors hover:border-line-strong", compact && "size-[32px] p-0")}>
-          {compact && <Icon icon={AiChat02Icon} className="size-4" />}
-          <span className={cn("flex size-1.5", compact ? "absolute right-1 top-1" : "relative")}>
+        <button aria-label={`ChatGPT${plan ? ` ${plan}` : ""} · conectado`} title={`ChatGPT${plan ? ` ${plan}` : ""} · conectado`} className={cn("relative flex items-center justify-center gap-2 text-ink transition-colors", compact ? "control size-[32px] rounded-[10px] p-0 text-[13.5px] hover:border-line-strong" : "home-pill home-account px-4")}>
+          <Icon icon={AiChat02Icon} className="size-4 shrink-0" />
+          {compact && <span className="absolute right-1 top-1 flex size-1.5">
             <span className="absolute inset-0 rounded-full bg-ok" />
-          </span>
-          {!compact && <>ChatGPT{plan && <span className="text-ink-3">{plan}</span>}</>}
+          </span>}
+          {!compact && <><span>ChatGPT</span>{plan && <span className="home-account-plan text-ink-3">{plan}</span>}</>}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -251,7 +251,7 @@ export function LoginDialog() {
               ))}
             </ul>
             {error && <p className="rounded-[12px] border border-red-400/20 bg-red-500/10 px-3.5 py-2.5 text-[13px] text-red-200">{error}</p>}
-            <Button variant="primary" size="lg" className="w-full" onClick={start} disabled={starting}>
+            <Button variant="lit" size="lg" className="w-full rounded-full" onClick={start} disabled={starting}>
               Continuar com ChatGPT
             </Button>
             {auth?.system && (

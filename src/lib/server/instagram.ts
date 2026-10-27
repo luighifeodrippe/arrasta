@@ -1,3 +1,5 @@
+import { DestinationError, fetchPublicUrl, readLimitedBody } from "./public-network.ts";
+
 /**
  * Leitura de posts e perfis públicos do Instagram pela página de incorporação (embed),
  * a mesma que sites usam para mostrar um post. A disponibilidade depende do Instagram;
@@ -73,33 +75,12 @@ export function parseHandle(input: string): string | null {
   return ["accounts", "direct", "explore", "p", "reel", "reels", "stories", "tv"].includes(normalized) ? null : normalized;
 }
 
-async function readLimitedBody(response: Response, maxBytes: number, message: string): Promise<Buffer> {
-  if (!response.body) return Buffer.alloc(0);
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let bytes = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) return Buffer.concat(chunks, bytes);
-      bytes += value.byteLength;
-      if (bytes > maxBytes) {
-        await reader.cancel();
-        throw new InstagramError(message);
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-
 async function fetchText(url: string, maxBytes?: number): Promise<string> {
   try {
     const response = await fetch(url, { headers: HEADERS, redirect: "follow", signal: AbortSignal.timeout(20000) });
     if (!response.ok) throw new InstagramError(`O Instagram respondeu ${response.status}. Tente de novo em instantes.`);
     if (!maxBytes) return await response.text();
-    const data = await readLimitedBody(response, maxBytes, "A resposta do Instagram excedeu o limite de leitura do perfil.");
+    const data = await readLimitedBody(response, maxBytes, new InstagramError("A resposta do Instagram excedeu o limite de leitura do perfil."));
     return data.toString("utf8");
   } catch (error) {
     if (error instanceof InstagramError) throw error;
@@ -281,10 +262,22 @@ export async function fetchProfile(input: string): Promise<InstagramProfile> {
   };
 }
 
-export async function downloadImage(url: string, userAgent = HEADERS["User-Agent"], maxBytes = 8 * 1024 * 1024): Promise<{ data: Buffer; type: string | null }> {
-  const response = await fetch(url, { headers: { "User-Agent": userAgent }, signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new InstagramError(`Não consegui baixar uma imagem (${response.status}).`);
+export async function downloadImage(url: string, userAgent = HEADERS["User-Agent"], maxBytes = 15 * 1024 * 1024): Promise<{ data: Buffer; type: string | null }> {
+  let response: Response;
+  try {
+    ({ response } = await fetchPublicUrl(url, { headers: { "User-Agent": userAgent }, signal: AbortSignal.timeout(30000) }));
+  } catch (error) {
+    if (error instanceof DestinationError) throw new InstagramError(error.message);
+    throw error;
+  }
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new InstagramError(`Não consegui baixar uma imagem (${response.status}).`);
+  }
   const type = response.headers.get("content-type");
-  if (type && !type.startsWith("image/")) throw new InstagramError("O link da imagem não devolveu uma imagem.");
-  return { data: await readLimitedBody(response, maxBytes, "A imagem excedeu o limite de download."), type };
+  if (type && !type.startsWith("image/")) {
+    await response.body?.cancel();
+    throw new InstagramError("O link da imagem não devolveu uma imagem.");
+  }
+  return { data: await readLimitedBody(response, Math.min(maxBytes, 15 * 1024 * 1024), new InstagramError("A imagem excedeu o limite de download.")), type };
 }

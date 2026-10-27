@@ -92,21 +92,21 @@ export function ContentBank() {
   };
 
   return (
-    <section className="mt-16" aria-labelledby="content-bank-heading">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <section className="home-section" aria-labelledby="content-bank-heading">
+      <div className="home-section-heading home-bank-heading">
         <div>
-          <h2 id="content-bank-heading" className="text-[15px] font-semibold tracking-[-0.01em]">Banco de conteúdos</h2>
-          <p className="mt-1 text-[13px] text-ink-3">Guarde links e ideias para seus próximos carrosséis.</p>
+          <h2 id="content-bank-heading" className="titulo">Banco de conteúdos</h2>
+          <p className="text-ink-3">Guarde links e ideias para seus próximos carrosséis.</p>
         </div>
         <Dialog open={open} onOpenChange={(next) => { if (!saving) { setOpen(next); setSaveError(null); } }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Icon icon={PlusSignIcon} />Salvar conteúdo</Button>
+            <Button size="sm" variant="glass" className="home-bank-save home-pill h-9 rounded-full px-4 text-[14px]"><Icon icon={PlusSignIcon} />Salvar conteúdo</Button>
           </DialogTrigger>
           <DialogContent title="Salvar conteúdo" description="Seu banco fica guardado neste computador.">
             <form onSubmit={save} className="space-y-4">
               <div className="flex gap-2" role="group" aria-label="Tipo de conteúdo">
-                <Button size="sm" variant={kind === "link" ? "primary" : "glass"} aria-pressed={kind === "link"} onClick={() => { setKind("link"); setSaveError(null); }}>Link</Button>
-                <Button size="sm" variant={kind === "text" ? "primary" : "glass"} aria-pressed={kind === "text"} onClick={() => { setKind("text"); setSaveError(null); }}>Texto ou ideia</Button>
+                <Button size="sm" variant="glass" className={kind === "link" ? "bg-white/[0.12] text-white" : undefined} aria-pressed={kind === "link"} onClick={() => { setKind("link"); setSaveError(null); }}>Link</Button>
+                <Button size="sm" variant="glass" className={kind === "text" ? "bg-white/[0.12] text-white" : undefined} aria-pressed={kind === "text"} onClick={() => { setKind("text"); setSaveError(null); }}>Texto ou ideia</Button>
               </div>
               <div>
                 <Label htmlFor="library-title" hint="Opcional">Título</Label>
@@ -123,7 +123,7 @@ export function ContentBank() {
               {saveError && <p id="library-save-error" role="alert" className="text-[13px] text-red-300">{saveError}</p>}
               <div className="flex justify-end gap-2 pt-1">
                 <Button onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
-                <Button type="submit" variant="primary" disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
+                <Button type="submit" variant="lit" disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
               </div>
             </form>
           </DialogContent>
@@ -131,32 +131,32 @@ export function ContentBank() {
       </div>
 
       {error ? (
-        <div className="glass-flat flex flex-wrap items-center gap-3 rounded-[18px] p-5">
+        <div className="home-bank-panel flex flex-wrap items-center gap-3">
           <p role="alert" className="text-[13px] text-red-300">{error}</p>
           <Button size="sm" onClick={load}>Tentar novamente</Button>
         </div>
       ) : items === null ? (
         <p role="status" className="text-[13px] text-ink-3">Carregando conteúdos…</p>
       ) : items.length === 0 ? (
-        <div className="glass-flat flex items-center gap-3 rounded-[18px] p-5">
+        <div className="home-bank-panel flex items-center gap-3">
           <Icon icon={Bookmark02Icon} className="size-5 shrink-0 text-ink-3" />
-          <p className="text-[13.5px] text-ink-2">Salve algo que vale um carrossel. Quando quiser, crie a partir daqui.</p>
+          <p className="text-[15px] text-ink-2">Salve algo que vale um carrossel. Quando quiser, crie a partir daqui.</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <article key={item.id} className="glass-flat flex min-w-0 flex-col rounded-[18px] p-4">
+            <article key={item.id} className="home-bank-panel flex min-w-0 flex-col">
               <div className="flex items-start gap-2.5">
                 <Icon icon={item.kind === "link" ? Link04Icon : FileTextIcon} className="mt-0.5 size-4 shrink-0 text-ink-3" />
                 <div className="min-w-0 flex-1">
-                  <button onClick={() => setViewing(item)} className="block w-full text-left text-[14px] font-medium leading-snug hover:underline">
+                  <button onClick={() => setViewing(item)} className="block w-full text-left text-[15px] font-semibold leading-snug hover:underline">
                     <span className="line-clamp-2 break-words">{item.title}</span>
                   </button>
-                  <p className="mt-1.5 line-clamp-2 break-words text-[12.5px] leading-relaxed text-ink-3">{item.content}</p>
+                  <p className="mt-1.5 line-clamp-2 break-words text-[14px] leading-relaxed text-ink-3">{item.content}</p>
                 </div>
               </div>
-              <div className="mt-4 flex items-center justify-between gap-2">
-                <Button size="sm" onClick={() => void create(item)} disabled={creating !== null}>
+              <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+                <Button size="sm" variant="glass" className="rounded-full text-[14px]" onClick={() => void create(item)} disabled={creating !== null}>
                   {creating === item.id ? "Preparando…" : "Criar carrossel"}<Icon icon={ArrowRight02Icon} />
                 </Button>
                 <Button variant="ghost" size="icon" aria-label={`Excluir ${item.title}`} title="Excluir conteúdo" onClick={() => setRemoving(item)} disabled={creating === item.id}><Icon icon={Delete02Icon} /></Button>
@@ -167,7 +167,7 @@ export function ContentBank() {
       )}
 
       <Dialog open={Boolean(viewing)} onOpenChange={(next) => { if (!next) setViewing(null); }}>
-        <DialogContent title={viewing?.title ?? "Conteúdo salvo"} footer={<Button variant="primary" onClick={() => viewing && void create(viewing)} disabled={creating !== null}>{creating ? "Preparando…" : "Criar carrossel"}<Icon icon={ArrowRight02Icon} /></Button>}>
+        <DialogContent title={viewing?.title ?? "Conteúdo salvo"} footer={<Button variant="lit" onClick={() => viewing && void create(viewing)} disabled={creating !== null}>{creating ? "Preparando…" : "Criar carrossel"}<Icon icon={ArrowRight02Icon} /></Button>}>
           {viewing?.kind === "link" ? <a href={viewing.content} target="_blank" rel="noreferrer" className="break-all text-[14px] text-ink-2 underline underline-offset-4">{viewing.content}</a> : <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ink-2">{viewing?.content}</p>}
         </DialogContent>
       </Dialog>

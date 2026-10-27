@@ -11,15 +11,20 @@ import {
 } from "@dnd-kit/core";
 import { horizontalListSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRight02Icon, Copy01Icon, Delete02Icon, DragDropVerticalIcon, Layout3ColumnIcon, Layout3RowIcon, PlusSignIcon, Tick02Icon, ZoomInAreaIcon, ZoomOutAreaIcon } from "@hugeicons/core-free-icons";
-import { restoreLayout, useStageView, ZOOM_LEVELS, type Layout } from "./stage-view";
+import { ArrowRight02Icon, Copy01Icon, Delete02Icon, DragDropVerticalIcon, Layout3ColumnIcon, Layout3RowIcon, PlusSignIcon, MinusSignIcon, GridViewIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { restoreLayout, useStageView, type Layout } from "./stage-view";
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ThinkingOrb } from "thinking-orbs";
+import { useModKey } from "@/lib/client/shortcut";
+import { cardWidth, MAX_ZOOM, MIN_ZOOM } from "@/lib/client/stage-math";
+import { StageGuides } from "./StageGuides";
+import { SelectionBar } from "./SelectionBar";
+import { useStageCamera } from "./use-stage-camera";
 import { identityOf, useApp } from "@/lib/client/app-store";
 import { useEditor } from "@/lib/client/editor-store";
 import { IMAGE_DRAG_TYPE, placeImage, uploadToSlide } from "@/lib/client/images";
-import { fitSlideWidth, FONTS, MAX_SLIDES, SLIDE_KINDS, SLIDE_W, slideHeight, TEMPLATES } from "@/lib/defaults";
+import { fitRowSlideWidth, FONTS, MAX_SLIDES, SLIDE_KINDS, SLIDE_W, slideHeight, TEMPLATES } from "@/lib/defaults";
 import type { Design, Project, Slide } from "@/lib/types";
 import type { EditBinding } from "../slide/editing";
 import { SlideCanvas, SlideFrame, type SlideIdentity } from "../slide/SlideCanvas";
@@ -38,28 +43,38 @@ import { Icon } from "@/components/ui/icon";
 const LABEL = 28;
 const BAR = 112;
 const TOOL = 64;
-const ZOOMS = [0.5, 0.72, 0.9] as const;
-const COLUMN_WIDTHS = [340, 440, 560] as const;
 const FLASH_MS = 4000;
 
 /** Zoom dos cards e lado a lado ou em coluna; fica na barra do topo do editor. */
 export function ViewControls() {
   const zoom = useStageView((s) => s.zoom);
   const layout = useStageView((s) => s.layout);
-  const setZoom = useStageView((s) => s.setZoom);
+  const zoomIn = useStageView((s) => s.zoomIn);
+  const zoomOut = useStageView((s) => s.zoomOut);
+  const fit = useStageView((s) => s.fit);
+  const guides = useStageView((s) => s.guides);
+  const toggleGuides = useStageView((s) => s.toggleGuides);
+  const width = useStageView((s) => s.cardWidth);
+  const mod = useModKey();
   const setLayout = useStageView((s) => s.setLayout);
   const button = "grid size-8 place-items-center rounded-[9px] transition-colors disabled:opacity-35";
   return (
     <div className="flex items-center rounded-[11px] border border-white/[0.07] p-0.5">
-      <Tip label="Diminuir os cards">
-        <button onClick={() => setZoom(zoom - 1)} disabled={zoom === 0} className={cn(button, "text-ink-2 hover:bg-white/[0.07] hover:text-ink")} aria-label="Diminuir os cards">
-          <Icon icon={ZoomOutAreaIcon} className="size-4" />
+      <Tip label={`Diminuir (${mod}−)`}>
+        <button onClick={zoomOut} disabled={zoom <= MIN_ZOOM} className={cn(button, "text-ink-2 hover:bg-white/[0.07] hover:text-ink")} aria-label="Diminuir">
+          <Icon icon={MinusSignIcon} className="size-4" />
         </button>
       </Tip>
-      <Tip label="Aumentar os cards">
-        <button onClick={() => setZoom(zoom + 1)} disabled={zoom === ZOOM_LEVELS - 1} className={cn(button, "text-ink-2 hover:bg-white/[0.07] hover:text-ink")} aria-label="Aumentar os cards">
-          <Icon icon={ZoomInAreaIcon} className="size-4" />
+      <Tip label={`Ajustar à tela (${mod}0)`}>
+        <button onClick={fit} className="h-8 min-w-12 rounded-[9px] px-1.5 text-[12px] text-ink-2 tabular-nums hover:bg-white/[0.07] hover:text-ink" aria-label={`Ajustar à tela (${mod}0)`}>{Math.round(width / SLIDE_W * 100)}%</button>
+      </Tip>
+      <Tip label={`Aumentar (${mod}+)`}>
+        <button onClick={zoomIn} disabled={zoom >= MAX_ZOOM} className={cn(button, "text-ink-2 hover:bg-white/[0.07] hover:text-ink")} aria-label="Aumentar">
+          <Icon icon={PlusSignIcon} className="size-4" />
         </button>
+      </Tip>
+      <Tip label="Guias do Instagram">
+        <button onClick={toggleGuides} aria-pressed={guides} aria-label="Guias do Instagram" className={cn(button, guides ? "bg-white/[0.1] text-ink" : "text-ink-2 hover:bg-white/[0.07] hover:text-ink")}><Icon icon={GridViewIcon} className="size-4" /></button>
       </Tip>
       <span className="mx-0.5 h-4 w-px bg-white/[0.1]" aria-hidden />
       <div role="radiogroup" aria-label="Como mostrar os slides" className="flex">
@@ -87,13 +102,14 @@ export function ViewControls() {
 }
 
 /** Palco: todos os slides lado a lado (ou em coluna), com a barra de formatação em cima. */
-export function Stage() {
+export function Stage({ onDownload }: { onDownload: (ids: string[]) => void }) {
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
+  const selection = useEditor((s) => s.selection);
   const running = useAgent((s) => s.running);
   const kind = useAgent((s) => s.kind);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ w: 900, h: 700 });
+  const [box, setBox] = useState({ w: 900, h: 700, gap: 20 });
   const zoom = useStageView((s) => s.zoom);
   const layout = useStageView((s) => s.layout);
 
@@ -102,7 +118,11 @@ export function Stage() {
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const update = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    const update = () => setBox({
+      w: el.clientWidth,
+      h: el.clientHeight,
+      gap: 1.25 * parseFloat(getComputedStyle(document.documentElement).fontSize), // gap-5: 1.25rem
+    });
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
@@ -119,8 +139,13 @@ export function Stage() {
   const tools = !working && project.slides.length > 0;
   const toolSpace = tools ? TOOL : 0;
   const fitHeight = Math.max(0, box.h - toolSpace - LABEL - BAR - 32);
-  const rowWidth = fitSlideWidth(project.design.size, Math.max(0, box.w - 48), fitHeight * ZOOMS[zoom], 440);
-  const columnWidth = Math.max(0, Math.floor(Math.min(box.w - 48, COLUMN_WIDTHS[zoom])));
+  const fittedWidth = cardWidth(fitHeight, zoom, ratio, "row", box.w);
+  const rowWidth = layout === "row" && !working && zoom <= 0.9
+    ? fitRowSlideWidth(fittedWidth, box.w - 64, project.slides.length, box.gap)
+    : fittedWidth;
+  const columnWidth = cardWidth(fitHeight, zoom, ratio, "column", box.w);
+  const width = layout === "column" ? columnWidth : rowWidth;
+  useLayoutEffect(() => { useStageView.setState({ cardWidth: width }); }, [width]);
   const top = toolSpace + 16 + Math.max(0, (fitHeight - rowWidth * ratio) / 2);
 
   return (
@@ -139,7 +164,7 @@ export function Stage() {
       {tools && (
         <div className="@container pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center px-3 pt-3">
           <div className="pointer-events-auto flex min-w-0 max-w-full justify-center">
-            <EditorToolbar />
+            {selection.length >= 2 ? <SelectionBar onDownload={onDownload} /> : <EditorToolbar />}
           </div>
         </div>
       )}
@@ -150,6 +175,7 @@ export function Stage() {
 function SlideList({ project, width, ratio, layout }: { project: Project; width: number; ratio: number; layout: Layout }) {
   const selectedId = useEditor((s) => s.selectedId);
   const select = useEditor((s) => s.select);
+  const selection = useEditor((s) => s.selection);
   const moveSlide = useEditor((s) => s.moveSlide);
   const addSlide = useEditor((s) => s.addSlide);
   const profile = useApp((s) => s.profile);
@@ -161,10 +187,7 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  useEffect(() => {
-    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-slide-card="${selectedId}"]`);
-    el?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
-  }, [selectedId, layout]);
+  const camera = useStageCamera(scrollRef, width, layout);
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
@@ -174,19 +197,21 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
   };
 
   return (
+    <div className="relative h-full overflow-hidden [&[data-stage-panning=true]_*]:cursor-[inherit]" style={{ cursor: camera.cursor }} data-stage-panning={camera.cursor ? "true" : undefined}>
     <div
       ref={scrollRef}
-      onClick={(event) => {
-        // Clique no vazio do palco termina a edição de texto.
-        if (event.target === event.currentTarget) (document.activeElement as HTMLElement | null)?.blur();
-      }}
+      data-stage-scroll
+      {...camera.handlers}
       className={cn(
-        "h-full min-w-0 overscroll-none",
-        column
-          ? "overflow-y-auto overflow-x-hidden pb-[152px] pt-[calc(var(--tool)+12px)]"
-          : "no-scrollbar flex items-start overflow-x-auto overflow-y-hidden px-[max(32px,calc(50%-var(--strip)/2))] pt-[var(--stage-top)]",
+        "h-full min-w-0 overscroll-none overflow-auto [overflow-anchor:none]",
+        "pl-[calc(var(--stage-side)+var(--camera-left,0px))] pr-[calc(var(--stage-side)+var(--camera-right,0px))]",
+        "pt-[calc(var(--stage-top)+var(--camera-top,0px))] pb-[calc(152px+var(--camera-bottom,0px))]",
+        !column && "no-scrollbar",
       )}
-      style={column ? undefined : { ["--strip" as string]: `${project.slides.length * (width + 20) + width * 0.5}px` }}
+      style={{
+        ["--stage-side" as string]: column ? `max(24px, calc(50% - ${width / 2}px))` : `max(32px, calc(50% - ${(project.slides.length * (width + 20) + width * 0.5) / 2}px))`,
+        ...(column ? { ["--stage-top" as string]: "calc(var(--tool) + 12px)" } : {}),
+      }}
     >
       <DndContext
         sensors={sensors}
@@ -199,7 +224,7 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
         onDragEnd={onDragEnd}
       >
         <SortableContext items={project.slides.map((s) => s.id)} strategy={column ? verticalListSortingStrategy : horizontalListSortingStrategy}>
-          <div className={cn("flex", column ? "mx-auto flex-col gap-7" : "items-start gap-5 pb-6")} style={column ? { width } : undefined}>
+          <div data-tour="stage" className={cn("flex", column ? "flex-col gap-7" : "w-max items-start gap-5")} style={column ? { width } : undefined}>
             {project.slides.map((slide, index) => (
               <SortableCard
                 key={slide.id}
@@ -209,7 +234,8 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
                 design={project.design}
                 identity={identity}
                 width={width}
-                selected={slide.id === selectedId}
+                selected={selection.length ? selection.includes(slide.id) : slide.id === selectedId}
+                editable={slide.id === selectedId && selection.length < 2}
                 onSelect={() => select(slide.id)}
               />
             ))}
@@ -230,6 +256,8 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
         </SortableContext>
       </DndContext>
     </div>
+    {camera.marquee && <div aria-hidden className="pointer-events-none absolute z-20 rounded-[2px] border border-white/70 bg-white/[0.06]" style={camera.marquee} />}
+    </div>
   );
 }
 
@@ -241,6 +269,7 @@ function SortableCard({
   identity,
   width,
   selected,
+  editable,
   onSelect,
 }: {
   slide: Slide;
@@ -250,8 +279,10 @@ function SortableCard({
   identity: SlideIdentity;
   width: number;
   selected: boolean;
+  editable: boolean;
   onSelect: () => void;
 }) {
+  const guides = useStageView((s) => s.guides);
   const [editing, setEditing] = useState<string | null>(null);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: slide.id,
@@ -266,8 +297,9 @@ function SortableCard({
   const flashed = useFlash(highlight.ids.includes(slide.id) ? highlight.at : 0);
 
   const binding = useMemo<EditBinding | undefined>(() => {
-    if (!selected) return undefined;
+    if (!editable) return undefined;
     return {
+      moveBlock: (block, offset) => useEditor.getState().moveBlock(slide.id, block, offset),
       setText: (field, value) => updateSlide(slide.id, { [field]: value }, field),
       setImage: (patch) => {
         const current = useEditor.getState().project?.slides.find((s) => s.id === slide.id)?.image;
@@ -282,7 +314,7 @@ function SortableCard({
       },
       editIdentity: () => useEditing.getState().setIdentityOpen(true),
     };
-  }, [selected, slide.id, width, pendingFocus, updateSlide]);
+  }, [editable, slide.id, width, pendingFocus, updateSlide]);
 
 
   return (
@@ -351,10 +383,21 @@ function SortableCard({
           )}
         </div>
         <div
+          data-stage-card-face={slide.id}
           role="group"
-          data-tour={selected ? "stage" : undefined}
-          aria-label={`Slide ${index + 1}${selected ? ", selecionado: clique no texto para editar" : ""}`}
+          aria-label={`Slide ${index + 1}${selected ? editable ? ", selecionado: clique no texto para editar" : ", selecionado" : ""}`}
           tabIndex={selected ? -1 : 0}
+          onClickCapture={(event) => {
+            if (event.shiftKey || event.metaKey || event.ctrlKey) {
+              event.preventDefault();
+              event.stopPropagation();
+              (document.activeElement as HTMLElement | null)?.blur();
+              useEditor.getState().toggleInSelection(slide.id);
+            }
+          }}
+          onPointerDownCapture={(event) => {
+            if (event.shiftKey || event.metaKey || event.ctrlKey) { event.preventDefault(); event.stopPropagation(); }
+          }}
           onClick={onSelect}
           onKeyDown={(event) => {
             if (!selected && (event.key === "Enter" || event.key === " ")) {
@@ -363,7 +406,7 @@ function SortableCard({
             }
           }}
           // Texto, perfil e imagem focada isolam seus gestos. O restante do card sempre pode reordenar.
-          onPointerDown={listeners?.onPointerDown as React.PointerEventHandler<HTMLDivElement> | undefined}
+          onPointerDown={(event) => { if (event.pointerType !== "touch") listeners?.onPointerDown?.(event); }}
           onDragOver={(event) => {
             if (!event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes(IMAGE_DRAG_TYPE)) return;
             event.preventDefault();
@@ -382,7 +425,7 @@ function SortableCard({
             if (file) void uploadToSlide(slide.id, file);
           }}
           className={cn(
-            "relative block w-full touch-none overflow-hidden rounded-[16px] outline-none transition-[box-shadow,transform] duration-200 ease-out",
+            "relative block w-full overflow-hidden rounded-[16px] outline-none transition-[box-shadow,transform] duration-200 ease-out",
             selected
               ? "shadow-[0_0_0_2px_rgb(255_255_255/0.9),0_24px_60px_-20px_rgb(0_0_0/0.9)]"
               : "shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_18px_44px_-24px_rgb(0_0_0/0.9)] hover:shadow-[0_0_0_1px_rgb(255_255_255/0.22),0_18px_44px_-24px_rgb(0_0_0/0.9)] focus-visible:shadow-[0_0_0_2px_rgb(255_255_255/0.5)]",
@@ -395,6 +438,7 @@ function SortableCard({
           <SlideFrame width={width} size={design.size}>
             <SlideCanvas slide={slide} index={index} total={total} design={design} identity={identity} edit={binding} />
           </SlideFrame>
+          {guides && <StageGuides size={design.size} />}
           {dropping && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/55 text-[13px] font-medium text-white">
               Solte para usar a imagem

@@ -2,6 +2,10 @@
 
 O Arrasta usa código e ideias destes projetos. Os pacotes do npm trazem a própria licença em `node_modules`; abaixo estão os trechos copiados ou adaptados para dentro de `src/`.
 
+## Letras da página pública (`preview/`)
+
+Inter (Rasmus Andersson) e Kalam (Indian Type Foundry), em `preview/assets/fontes/`, sob a SIL Open Font License 1.1. Os avisos de copyright e o texto da licença estão em `preview/assets/fontes/OFL.txt`.
+
 ## Código copiado ou adaptado
 
 ### Magic UI — Marquee
@@ -9,8 +13,8 @@ O Arrasta usa código e ideias destes projetos. Os pacotes do npm trazem a próp
 
 MIT License · Copyright (c) Magic UI
 
-### uselayouts — Gooey Navbar e Polaroid Stack
-`src/components/ui/gooey-tabs.tsx` (adaptado do Gooey Navbar) e o leque dos cards em `src/components/home/Home.tsx` (ideia do Polaroid Stack) · https://uselayouts.com
+### uselayouts — Polaroid Stack
+O leque dos cards em `src/components/home/Home.tsx` (ideia do Polaroid Stack) · https://uselayouts.com
 
 MIT License · Copyright (c) 2025 Urvish Mali
 
@@ -58,7 +62,7 @@ SOFTWARE.
 
 ## Fontes
 
-Inter, Montserrat, Poppins, Bricolage Grotesque, Space Grotesk, Instrument Serif, Playfair Display, DM Serif Display, Anton, Caveat e Wix Madefor Text, do Google Fonts, sob a SIL Open Font License 1.1. O `next/font` baixa e serve as fontes junto do app.
+Inter, Montserrat, Poppins, Bricolage Grotesque, Space Grotesk, Instrument Serif, Playfair Display, DM Serif Display, Anton e Caveat, do Google Fonts, sob a SIL Open Font License 1.1. O `next/font` baixa e serve as fontes junto do app.
 
 ## Serviços
 

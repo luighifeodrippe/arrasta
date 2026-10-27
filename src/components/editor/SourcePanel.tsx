@@ -1,6 +1,6 @@
 "use client";
 
-import { BubbleChatIcon, FavouriteIcon, LinkSquare02Icon, PlayIcon, RepeatIcon } from "@hugeicons/core-free-icons";
+import { BubbleChatIcon, FavouriteIcon, Image02Icon, LinkSquare02Icon, PlayIcon, RepeatIcon } from "@hugeicons/core-free-icons";
 import { useState } from "react";
 import { useEditor } from "@/lib/client/editor-store";
 import { REMIX_LEVELS } from "@/lib/defaults";
@@ -43,7 +43,7 @@ export function SourcePanel() {
   if (source.kind === "idea") {
     return (
       <div>
-        <Section title="Ideia">
+        <Section title="Texto">
           <p className="text-pretty text-[14px] leading-relaxed text-ink">“{source.brief}”</p>
           <FormatPicker value={formatId} onChange={setFormatId} align="start" />
           <div>
@@ -89,7 +89,9 @@ export function SourcePanel() {
             <img src={author.avatar} alt="" className="size-10 rounded-full object-cover" />
           ) : (
             <span className="grid size-10 place-items-center rounded-full bg-white/10 text-[14px] font-semibold text-ink-2">
-              {((isVideo ? (author?.fullName ?? author?.username) : null) ?? source.site ?? author?.username ?? "?").charAt(0).toUpperCase()}
+              {source.kind === "upload" && !author
+                ? <Icon icon={Image02Icon} className="size-5" />
+                : ((isVideo ? (author?.fullName ?? author?.username) : null) ?? source.site ?? author?.username ?? "?").charAt(0).toUpperCase()}
             </span>
           )}
           <div className="min-w-0 flex-1">

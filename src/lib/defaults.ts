@@ -20,6 +20,16 @@ export function fitSlideWidth(size: SlideSize, width: number, height: number, pr
   return Math.max(0, Math.floor(Math.min(width, height * SLIDE_W / slideHeight(size), preferredWidth)));
 }
 
+/** Completa um card quase inteiro na borda, sem reduzir o zoom em mais de 12%. */
+export function fitRowSlideWidth(width: number, available: number, count: number, gap = 20): number {
+  if (width <= 0 || available <= 0) return width;
+  const fullCards = Math.floor((available + gap) / (width + gap));
+  const visible = available - fullCards * (width + gap);
+  if (fullCards >= count || visible <= width * 0.8 || visible >= width) return width;
+  const fitted = Math.floor((available - fullCards * gap) / (fullCards + 1));
+  return fitted >= width * 0.88 ? fitted : width;
+}
+
 export const TEMPLATES: { id: TemplateId; name: string; hint: string }[] = [
   { id: "perfil", name: "Perfil", hint: "Estilo post de texto, com foto e @" },
   { id: "editorial", name: "Editorial", hint: "Título grande e destaque em cor" },
@@ -82,6 +92,11 @@ export function defaultDesign(partial?: Partial<Design>): Design {
     titleStyle: textStyle(partial?.titleStyle),
     bodyStyle: textStyle(partial?.bodyStyle),
   };
+}
+
+/** listProjects já entrega primeiro o carrossel editado mais recentemente. */
+export function initialDesign(projects: readonly Pick<Project, "design">[]): Design {
+  return defaultDesign(projects[0]?.design);
 }
 
 export function defaultProfile(): Profile {
@@ -149,6 +164,7 @@ export function makeSlide(partial?: Partial<Slide>): Slide {
     valign: null,
     gap: null,
     ...partial,
+    offsets: partial?.offsets ?? {},
     titleStyle: textStyle(partial?.titleStyle),
     bodyStyle: textStyle(partial?.bodyStyle),
   };
@@ -303,6 +319,46 @@ Regras:
 - De 4 a 6 mitos, do mais comum ao mais surpreendente.
 - Tom firme e respeitoso: corrige a ideia, nunca a pessoa.
 - Não invente estudos ou números; use só o que está no conteúdo.`,
+  },
+  {
+    id: "prompts",
+    name: "Carrossel de prompts",
+    description: "Um pedido pronto para o ChatGPT por slide, com o benefício na frente.",
+    origin: "builtin",
+    createdAt: "2026-10-27T00:00:00.000Z",
+    prompt: `Carrossel de prompts: cada slide entrega um pedido pronto para usar no ChatGPT, com o benefício na frente.
+
+Estrutura, de 8 a 10 slides:
+1. Capa: uma afirmação forte ou um contraste sobre o assunto e a promessa com número. Exemplo de tom: "O ChatGPT não vai roubar o seu trabalho. Vai tirar dele as partes mais chatas. Estes 8 prompts te poupam horas de tarefa repetitiva."
+2. Do slide 2 ao penúltimo, um prompt por slide, começando pelo mais surpreendente e fácil:
+   - título: o número e o resultado (ex.: "1. Simplifique textos difíceis");
+   - texto: uma frase com o benefício e, depois, o prompt entre aspas, escrito como uma pessoa pediria: o que quer, o contexto e o que deve receber de volta, com as partes a trocar entre colchetes [assim];
+   - até 30 palavras fora do prompt; o prompt com até 45 palavras.
+3. Último slide: um pedido só (salvar para usar depois ou mandar para quem precisa).
+
+Regras:
+- Sem emojis e sem jargão técnico.
+- Prompt útil de verdade, que funciona colado como está; nada de "aja como um especialista" vazio.
+- Não prometa resultado garantido nem invente recurso de ferramenta.`,
+  },
+  {
+    id: "ferramentas",
+    name: "Carrossel de ferramentas",
+    description: "Uma ferramenta por slide: o que ela resolve e como usar hoje.",
+    origin: "builtin",
+    createdAt: "2026-10-27T00:00:00.000Z",
+    prompt: `Carrossel de ferramentas: cada slide apresenta uma ferramenta (site, app ou extensão) e o que ela resolve.
+
+Estrutura, de 8 a 10 slides:
+1. Capa: um dado do conteúdo ou um contraste que abre a lacuna, e a promessa com número. Exemplo de tom: "Quase ninguém usa as extensões de IA do navegador. Aqui estão 7 que economizam horas."
+2. Do slide 2 ao penúltimo, uma ferramenta por slide, começando pela mais surpreendente e fácil de testar (de preferência grátis e sem instalar nada):
+   - título: o número e o nome da ferramenta (ex.: "1. Nome da ferramenta");
+   - texto: o que ela faz e um uso prático do dia a dia, em até 30 palavras.
+3. Último slide: um pedido só (salvar a lista ou mandar para quem precisa).
+
+Regras:
+- Use só ferramentas que estão no conteúdo. Se o pedido não trouxer a lista, escolha só ferramentas reais e conhecidas, sem preço, plano ou número de que você não tenha certeza.
+- Sem emojis e sem jargão técnico. Benefício na frente, recurso depois.`,
   },
 ];
 

@@ -1,8 +1,7 @@
 "use client";
 
-import { BorderBeam } from "border-beam";
-import { ArrowRight02Icon, BulbIcon, Delete02Icon, ImageAdd02Icon, Link04Icon, MoreHorizontalIcon, Upload04Icon } from "@hugeicons/core-free-icons";
-import { AnimatePresence, motion } from "motion/react";
+import { ArrowRight02Icon, BulbIcon, Delete02Icon, ImageAdd02Icon, Link04Icon, MoreHorizontalIcon, PlusSignIcon, Upload04Icon } from "@hugeicons/core-free-icons";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { DropdownMenu } from "radix-ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -19,7 +18,8 @@ import { ProfileButton } from "../app/ProfileButton";
 import { SlideCanvas, SlideFrame } from "../slide/SlideCanvas";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
-import { GooeyTabs } from "../ui/gooey-tabs";
+import { Dialog, DialogContent } from "../ui/dialog";
+import { Segmented } from "../ui/segmented";
 import { Onboarding } from "./Onboarding";
 import { Showcase } from "./Showcase";
 import { ContentBank } from "./ContentBank";
@@ -49,6 +49,7 @@ function ago(iso: string) {
 
 export function Home() {
   const router = useRouter();
+  const reducedMotion = useReducedMotion();
   const [mode, setMode] = useState<Mode>("link");
   const [link, setLink] = useState("");
   const [idea, setIdea] = useState("");
@@ -56,6 +57,10 @@ export function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[] | null>(null);
+  const [deleting, setDeleting] = useState<Project | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const cancelDelete = useRef<HTMLButtonElement>(null);
+  const deleteTrigger = useRef<HTMLButtonElement | null>(null);
   const [formatId, setFormatId] = useState<string | null>(null);
   const [formatPicked, setFormatPicked] = useState(false);
   const profile = useApp((s) => s.profile);
@@ -63,7 +68,18 @@ export function Home() {
   const setLoginOpen = useApp((s) => s.setLoginOpen);
   const fileRef = useRef<HTMLInputElement>(null);
   const linkRef = useRef<HTMLInputElement>(null);
+  const ideaRef = useRef<HTMLTextAreaElement>(null);
+  const printsRef = useRef<HTMLButtonElement>(null);
   const pending = useRef(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("arrasta:home-mode");
+      if (saved === "link" || saved === "idea" || saved === "prints") setMode(saved);
+    } catch {
+      // Sem armazenamento: começa em Link.
+    }
+  }, []);
 
   useEffect(() => {
     api.projects().then(setProjects).catch(() => setProjects([]));
@@ -111,10 +127,12 @@ export function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected]);
 
-  const focusLink = () => {
-    setMode("link");
+  const focusInput = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => linkRef.current?.focus(), 250);
+    setTimeout(() => {
+      const input = mode === "link" ? linkRef.current : mode === "idea" ? ideaRef.current : printsRef.current;
+      input?.focus();
+    }, 250);
   };
 
   const blank = async () => {
@@ -123,117 +141,118 @@ export function Home() {
   };
 
   const remove = async (id: string) => {
-    await api.deleteProject(id);
-    setProjects((list) => list?.filter((p) => p.id !== id) ?? null);
-    toast("Carrossel excluído");
+    if (removing) return;
+    setRemoving(true);
+    try {
+      await api.deleteProject(id);
+      setProjects((list) => list?.filter((p) => p.id !== id) ?? null);
+      setDeleting(null);
+      toast("Carrossel excluído");
+    } catch {
+      toast.error("Não consegui excluir. Tente de novo.");
+    } finally {
+      setRemoving(false);
+    }
   };
 
   const identity = identityOf(profile);
 
   return (
-    <div className="relative min-h-dvh overflow-x-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[560px] opacity-70"
-        style={{ background: "radial-gradient(60% 55% at 50% 0%, rgb(255 255 255 / 0.07), transparent 70%)" }}
-      />
-      <header className="relative z-10 mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-3 px-4 sm:px-7">
-        <Logo />
-        <div className="flex items-center gap-2">
-          <ProfileButton />
-          <ChatGPTAccount />
+    <div className="home min-h-dvh overflow-x-clip">
+      <header className="home-header">
+        <div className="home-shell flex h-full items-center justify-between gap-2">
+          <Logo />
+          <div className="flex shrink-0 items-center gap-2">
+            <ProfileButton />
+            <ChatGPTAccount />
+          </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-[1200px] px-4 pb-24 sm:px-7">
-        <section className="mx-auto flex max-w-[760px] flex-col items-center pt-[clamp(40px,11vh,120px)] text-center">
-          <span className="glass-flat mb-6 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12.5px] text-ink-2">
-            <span className="size-1.5 rounded-full bg-brand" />
-            Open source · roda no seu computador
-          </span>
-          <h1 className="text-balance text-[clamp(36px,5.6vw,60px)] font-semibold leading-[1.02] tracking-[-0.035em]">
+      <main className="home-shell">
+        <section className="home-opening" aria-labelledby="home-heading">
+          <h1 id="home-heading" className="titulo home-heading">
             {["Sua ideia vira carrossel.", "Na sua voz."].map((part, i) => (
               <motion.span
                 key={part}
-                initial={{ opacity: 0, filter: "blur(10px)" }}
+                initial={reducedMotion ? false : { opacity: 0, filter: "blur(10px)" }}
                 animate={{ opacity: 1, filter: "blur(0px)" }}
                 transition={{ duration: 0.7, ease: [0.23, 1, 0.32, 1], delay: 0.05 + i * 0.18 }}
-                className={i ? "text-ink-3" : undefined}
+                className="block"
               >
-                {part}
-                {i === 0 ? " " : ""}
+                <span className={i ? "quente" : undefined}>{part}</span>
               </motion.span>
             ))}
           </h1>
-          <p className="mt-5 max-w-[560px] text-pretty text-[clamp(15px,1.6vw,17px)] leading-relaxed text-ink-2">
-            Comece com uma ideia, prints ou um link acessível. O ChatGPT organiza o conteúdo e escreve no seu estilo. Você dá o acabamento.
-          </p>
-          <p className="mt-4 text-[13.5px] leading-relaxed text-ink-2">
-            <strong className="font-medium text-ink">Sua conta do ChatGPT. Sem cobrança de API.</strong>
-            <span className="mt-1 block text-[12.5px] text-ink-3">Sem chave de API. O uso segue os limites do Codex na sua conta.</span>
-          </p>
-
-          <GooeyTabs
-            label="Como começar"
-            className="mt-9"
-            value={mode}
-            onChange={(m) => {
-              setMode(m);
-              setError(null);
-            }}
-            options={[
-              { value: "link", label: "Link", icon: <Icon icon={Link04Icon} /> },
-              { value: "idea", label: "Ideia", icon: <Icon icon={BulbIcon} /> },
-              { value: "prints", label: "Prints", icon: <Icon icon={ImageAdd02Icon} /> },
-            ]}
-          />
-
-          <div className="mt-4 w-full">
-            <BorderBeam
-              size={busy ? "line" : "pulse-outside"}
-              colorVariant="mono"
-              theme="dark"
-              active={busy || (!ready && mode === "link")}
-              className="w-full rounded-[22px]"
-            >
+          <div className="home-opening-grid">
+            <div className="home-composer">
+              <p className="home-intro">
+                <span>Comece com uma ideia, um texto, prints ou um link.</span>{" "}
+                O ChatGPT escreve no seu estilo, com a sua conta e sem chave nem cobrança de API.
+              </p>
+              <Segmented
+                label="Como começar"
+                appearance="pill"
+                className="mt-10"
+                value={mode}
+                onChange={(m) => {
+                  setMode(m);
+                  try {
+                    localStorage.setItem("arrasta:home-mode", m);
+                  } catch {
+                    // Sem armazenamento: a aba vale só nesta visita.
+                  }
+                  setError(null);
+                }}
+                options={[
+                  { value: "link", label: "Link", icon: <Icon icon={Link04Icon} /> },
+                  { value: "idea", label: "Texto", icon: <Icon icon={BulbIcon} /> },
+                  { value: "prints", label: "Prints", icon: <Icon icon={ImageAdd02Icon} /> },
+                ]}
+              />
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   void submit();
                 }}
-                className="glass flex w-full flex-col gap-2 rounded-[22px] p-2 sm:flex-row sm:items-center"
+                className={cn("home-field", mode === "idea" && "home-field-text")}
               >
                 {mode === "link" && (
-                  <label className="flex h-14 min-w-0 flex-1 items-center gap-3 pl-4 pr-2">
-                    <Icon icon={Link04Icon} className="size-5 shrink-0 text-ink-3" />
-                    <input
-                      ref={linkRef}
-                      value={link}
-                      onChange={(e) => setLink(e.target.value)}
-                      placeholder="Cole um link: Instagram, YouTube, X ou qualquer site"
-                      className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
-                      autoFocus
-                      inputMode="url"
-                      aria-label="Link do conteúdo"
-                    />
+                  <label className="home-field-source">
+                    <Icon icon={Link04Icon} className="size-[18px] shrink-0 text-ink-3" />
+                    <span className="relative flex h-full min-w-0 flex-1 items-center">
+                      {!link && <span aria-hidden className="home-link-example pointer-events-none absolute inset-x-0 truncate text-ink-3">Cole um link: Instagram, YouTube, X ou qualquer site</span>}
+                      <input
+                        ref={linkRef}
+                        value={link}
+                        onChange={(e) => setLink(e.target.value)}
+                        placeholder="Cole um link"
+                        className="home-link h-full min-w-0 w-full bg-transparent outline-none placeholder:text-ink-3"
+                        autoFocus
+                        inputMode="url"
+                        aria-label="Link do conteúdo"
+                      />
+                    </span>
                   </label>
                 )}
                 {mode === "idea" && (
                   <textarea
+                    ref={ideaRef}
                     value={idea}
                     onChange={(e) => setIdea(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void submit();
                     }}
-                    rows={3}
-                    placeholder="Sobre o que é o carrossel? Ex.: 5 erros de quem começa a usar IA no trabalho"
-                    className="min-h-[96px] min-w-0 flex-1 resize-none bg-transparent px-4 py-3.5 text-left text-[16px] leading-relaxed outline-none placeholder:text-ink-3"
-                    aria-label="Ideia do carrossel"
+                    rows={4}
+                    placeholder="Cole um texto ou escreva a ideia. Ex.: 5 erros de quem começa a usar IA no trabalho"
+                    className="home-textarea"
+                    aria-label="Texto ou ideia do carrossel"
                     autoFocus
                   />
                 )}
                 {mode === "prints" && (
                   <button
+                    ref={printsRef}
                     type="button"
                     onClick={() => fileRef.current?.click()}
                     onDragOver={(e) => e.preventDefault()}
@@ -241,11 +260,11 @@ export function Home() {
                       e.preventDefault();
                       setFiles(Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/")));
                     }}
-                    className="flex h-14 min-w-0 flex-1 items-center gap-3 rounded-[16px] pl-4 pr-2 text-left text-[15px] text-ink-2 transition-colors hover:text-ink"
+                    className="home-field-source rounded-full text-left text-ink-2 transition-colors hover:text-ink"
                   >
-                    <Icon icon={Upload04Icon} className="size-5 shrink-0 text-ink-3" />
+                    <Icon icon={Upload04Icon} className="size-[18px] shrink-0 text-ink-3" />
                     <span className="truncate">
-                      {files.length ? `${files.length} ${files.length === 1 ? "imagem escolhida" : "imagens escolhidas"}` : "Escolha ou arraste os prints dos slides, na ordem"}
+                      {files.length ? `${files.length} ${files.length === 1 ? "imagem escolhida" : "imagens escolhidas"}` : <><span className="home-example-full">Escolha ou arraste os prints dos slides, na ordem</span><span className="home-example-short">Escolha os prints</span></>}
                     </span>
                   </button>
                 )}
@@ -257,91 +276,118 @@ export function Home() {
                   hidden
                   onChange={(e) => setFiles(Array.from(e.target.files ?? []).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })))}
                 />
-                <Button type="submit" variant="primary" size="lg" className="h-12 shrink-0 rounded-[15px] px-5 sm:self-center" disabled={!ready || busy}>
+                <Button
+                  type="submit" variant="lit" className="home-submit h-10 shrink-0 rounded-full px-4 text-[15px]"
+                  disabled={!ready || busy}
+                  aria-label={busy ? mode === "link" ? "Abrindo o post" : "Preparando" : mode === "idea" ? "Criar" : "Recriar"}
+                  aria-busy={busy}
+                >
                   {busy ? (
                     <>
-                      <ThinkingOrb state="searching" size={20} theme="light" aria-hidden />
-                      {mode === "link" ? "Abrindo o post" : "Preparando"}
+                      <ThinkingOrb state="searching" size={20} theme="dark" aria-hidden />
+                      <span className="home-submit-label">{mode === "link" ? "Abrindo o post" : "Preparando"}</span>
                     </>
                   ) : (
                     <>
-                      {mode === "idea" ? "Criar" : "Recriar"}
+                      <span className="home-submit-label">{mode === "idea" ? "Criar" : "Recriar"}</span>
                       <Icon icon={ArrowRight02Icon} />
                     </>
                   )}
                 </Button>
               </form>
-            </BorderBeam>
-            <AnimatePresence initial={false}>
-              {showFormats && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-                  className="overflow-hidden"
-                >
-                  <FormatPicker
-                    value={chosenFormat}
-                    onChange={(id) => {
-                      setFormatId(id);
-                      setFormatPicked(true);
-                    }}
-                    className="mt-3"
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {error ? (
-              <p role="alert" className="mt-3 text-[13.5px] text-red-300">
-                {error}
-              </p>
-            ) : (
-              <p className="mt-3 text-[13px] text-ink-3">
-                {mode === "link"
-                  ? "Instagram público, YouTube com legenda, X e artigos, quando a fonte permite a leitura. Projetos salvos neste computador."
-                  : mode === "idea"
-                    ? "O ChatGPT escreve de 6 a 9 slides na sua voz."
-                    : "Para posts privados ou de outras redes: envie os prints e o ChatGPT lê o texto."}
-                {" "}
-                <button onClick={blank} className="text-ink-2 underline decoration-white/20 underline-offset-4 transition-colors hover:text-ink">
+              <AnimatePresence initial={false}>
+                {showFormats && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.25, ease: [0.23, 1, 0.32, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <FormatPicker
+                      value={chosenFormat}
+                      onChange={(id) => {
+                        setFormatId(id);
+                        setFormatPicked(true);
+                      }}
+                      align="start"
+                      className="mt-4 pl-5"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className="home-note">
+                {error ? (
+                  <p role="alert" className="text-red-300">{error}</p>
+                ) : (
+                  <p className="text-ink-3">
+                    {mode === "link"
+                      ? "Instagram público, YouTube com legenda, X e artigos."
+                      : mode === "idea"
+                        ? "Ideia curta ou texto longo: vira de 6 a 9 slides na sua voz."
+                        : "Posts privados ou de outras redes: o ChatGPT lê os prints."}
+                  </p>
+                )}
+                <button onClick={blank} className="home-blank">
+                  <Icon icon={PlusSignIcon} className="size-4" />
                   Começar em branco
                 </button>
-              </p>
-            )}
+              </div>
+            </div>
+            <Onboarding hasProjects={Boolean(projects?.length)} onPaste={focusInput} />
           </div>
-
-          <Onboarding hasProjects={Boolean(projects?.length)} onPaste={focusLink} />
         </section>
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1], delay: 0.25 }}
-          className="mt-14"
-        >
-          <Showcase />
-        </motion.div>
-
-        <ContentBank />
-
         {projects && projects.length > 0 ? (
-          <section className="mt-16">
-            <div className="mb-5 flex items-baseline justify-between">
-              <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Seus carrosséis</h2>
-              <span className="text-[13px] text-ink-3">{projects.length}</span>
+          <section className="home-section" aria-labelledby="projects-heading">
+            <div className="home-section-heading flex items-baseline gap-3">
+              <h2 id="projects-heading" className="titulo">Seus carrosséis</h2>
+              <span className="text-[15px] tabular-nums text-ink-3">{projects.length}</span>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            <div className="home-projects">
               {projects.map((project, i) => (
-                <ProjectCard key={project.id} project={project} index={i} identity={identity} onOpen={() => router.push(`/editor/${project.id}`)} onDelete={() => remove(project.id)} />
+                <ProjectCard key={project.id} project={project} index={i} identity={identity} onOpen={() => router.push(`/editor/${project.id}`)} onDelete={(trigger) => { deleteTrigger.current = trigger; setDeleting(project); }} />
               ))}
             </div>
           </section>
-        ) : projects ? (
-          <HowItWorks />
         ) : null}
+        {Boolean(projects?.length) && <ContentBank key="content-bank" />}
+        <Models key="models" />
+        {!projects?.length && <ContentBank key="content-bank" />}
       </main>
+      <footer className="home-shell home-footer">
+        <p>Código aberto · roda no seu computador. Seus projetos ficam salvos aqui.</p>
+      </footer>
+      <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open && !removing) setDeleting(null); }}>
+        <DialogContent
+          title={`Excluir “${deleting?.title ?? ""}”?`}
+          description="O carrossel e as imagens dele saem deste computador. Não dá para desfazer."
+          hideClose
+          onOpenAutoFocus={(event) => { event.preventDefault(); cancelDelete.current?.focus(); }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (deleteTrigger.current?.isConnected) deleteTrigger.current.focus();
+            else (mode === "link" ? linkRef.current : mode === "idea" ? ideaRef.current : printsRef.current)?.focus();
+          }}
+          footer={<>
+            <Button ref={cancelDelete} disabled={removing} onClick={() => setDeleting(null)}>Cancelar</Button>
+            <Button variant="danger" disabled={removing} onClick={() => { if (deleting) void remove(deleting.id); }}>Excluir</Button>
+          </>}
+        >{null}</DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function Models() {
+  return (
+    <section className="home-section" aria-labelledby="models-heading">
+      <div className="home-section-heading">
+        <h2 id="models-heading" className="titulo">Modelos</h2>
+        <p>Os cards já saem com o seu nome e a sua foto.</p>
+      </div>
+      <Showcase />
+    </section>
   );
 }
 
@@ -356,8 +402,9 @@ function ProjectCard({
   index: number;
   identity: ReturnType<typeof identityOf>;
   onOpen: () => void;
-  onDelete: () => void;
+  onDelete: (trigger: HTMLButtonElement | null) => void;
 }) {
+  const menuTrigger = useRef<HTMLButtonElement>(null);
   const cover = project.slides[0];
   const sourceCover = project.source?.slides[0]?.src ?? project.source?.media[0];
   return (
@@ -374,7 +421,7 @@ function ProjectCard({
             key={slide.id}
             aria-hidden
             className={cn(
-              "absolute inset-x-0 top-0 overflow-hidden rounded-[14px] border border-white/[0.08] bg-raised shadow-[0_18px_40px_-24px_rgb(0_0_0/0.9)] transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
+              "absolute inset-x-0 top-0 overflow-hidden rounded-[16px] border border-white/[0.1] bg-raised shadow-[0_18px_40px_-24px_rgb(0_0_0/0.9)] transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
               i === 0
                 ? "origin-bottom-left rotate-[2.5deg] group-hover:translate-x-[10%] group-hover:rotate-[9deg]"
                 : "origin-bottom-right -rotate-[2deg] group-hover:-translate-x-[10%] group-hover:-rotate-[8deg]",
@@ -386,7 +433,7 @@ function ProjectCard({
             </SlideFrame>
           </div>
         ))}
-        <div className="relative overflow-hidden rounded-[14px] border border-white/[0.08] bg-raised shadow-[0_18px_40px_-24px_rgb(0_0_0/0.9)] transition-[transform,border-color] duration-300 ease-out group-hover:-translate-y-1 group-hover:border-white/[0.16]">
+        <div className="relative overflow-hidden rounded-[16px] border border-white/[0.1] bg-raised shadow-[0_18px_40px_-24px_rgb(0_0_0/0.9)] transition-[transform,border-color] duration-300 ease-out group-hover:-translate-y-1 group-hover:border-white/[0.16]">
           {cover ? (
             <SlideFrame size={project.design.size}>
               <SlideCanvas slide={cover} index={0} total={project.slides.length} design={project.design} identity={identity} />
@@ -401,14 +448,15 @@ function ProjectCard({
             <div className="grid aspect-[3/4] place-items-center text-[13px] text-ink-3">Vazio</div>
           )}
         </div>
-        <p className="mt-2.5 truncate text-[13.5px] font-medium text-ink">{project.title}</p>
-        <p className="mt-0.5 text-[12.5px] text-ink-3">{ago(project.updatedAt)}</p>
+        <p className="mt-3 truncate text-[15px] font-medium text-ink">{project.title}</p>
+        <p className="mt-0.5 text-[13px] text-ink-3">{ago(project.updatedAt)}</p>
       </button>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button
+            ref={menuTrigger}
             className={cn(
-              "absolute right-2 top-2 grid size-8 place-items-center rounded-[9px] bg-black/60 text-ink opacity-0 backdrop-blur transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100",
+              "home-project-options absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-black/60 text-ink opacity-0 backdrop-blur transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100",
             )}
             aria-label="Mais opções"
           >
@@ -418,7 +466,7 @@ function ProjectCard({
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" sideOffset={6} className="arrasta-pop glass z-50 min-w-[160px] rounded-[14px] p-1.5 text-ink">
             <DropdownMenu.Item
-              onSelect={onDelete}
+              onSelect={() => onDelete(menuTrigger.current)}
               className="flex h-9 cursor-pointer items-center gap-2 rounded-[9px] px-2.5 text-[13.5px] text-red-300 outline-none data-[highlighted]:bg-red-500/15"
             >
               <Icon icon={Delete02Icon} className="size-4" />
@@ -428,24 +476,5 @@ function ProjectCard({
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </motion.div>
-  );
-}
-
-function HowItWorks() {
-  const steps = [
-    { n: "1", title: "Cole o link", text: "Um carrossel que viralizou, um post do X ou um artigo que você queria ter escrito." },
-    { n: "2", title: "O ChatGPT trabalha", text: "Lê tudo, mantém a estrutura que funciona e reescreve na sua voz." },
-    { n: "3", title: "Edite e poste", text: "Ajuste o design, peça mudanças e baixe os PNGs em 1080×1440." },
-  ];
-  return (
-    <section className="mx-auto mt-16 grid max-w-[920px] grid-cols-1 gap-3 sm:grid-cols-3">
-      {steps.map((s) => (
-        <div key={s.n} className="glass-flat rounded-[18px] p-5">
-          <span className="text-[12px] font-semibold tabular-nums text-ink-3">{s.n}</span>
-          <p className="mt-3 text-[15px] font-medium">{s.title}</p>
-          <p className="mt-1 text-[13.5px] leading-relaxed text-ink-2">{s.text}</p>
-        </div>
-      ))}
-    </section>
   );
 }

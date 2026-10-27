@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { BUILTIN_FORMATS, defaultDesign, defaultWriting, normalizeProfile, normalizeProject, uid } from "../defaults";
+import { BUILTIN_FORMATS, defaultDesign, defaultWriting, initialDesign, normalizeProfile, normalizeProject, uid } from "../defaults.ts";
 import type { CarouselFormat, Project, Profile, Settings } from "../types";
 
 /** Tudo do usuário fica numa pasta local: projetos, imagens e o login do ChatGPT. */
@@ -17,11 +17,15 @@ export function assertId(id: string): string {
   return id;
 }
 
-async function readJson<T>(file: string): Promise<T | null> {
+async function readJson<T>(file: string, skipInvalid = false): Promise<T | null> {
   try {
     return JSON.parse(await fs.readFile(file, "utf8")) as T;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (skipInvalid && error instanceof SyntaxError) {
+      console.error(`Arquivo de carrossel inválido, ignorado: ${file}`);
+      return null;
+    }
     throw error;
   }
 }
@@ -41,7 +45,7 @@ export async function listProjects(): Promise<Project[]> {
     return [];
   }
   const projects = await Promise.all(
-    names.filter((n) => n.endsWith(".json")).map((n) => readJson<Project>(path.join(PROJECTS_DIR, n))),
+    names.filter((n) => n.endsWith(".json")).map((n) => readJson<Project>(path.join(PROJECTS_DIR, n), true)),
   );
   return projects
     .filter((p): p is Project => Boolean(p))
@@ -65,7 +69,8 @@ export async function deleteProject(id: string): Promise<void> {
   await fs.rm(path.join(ASSETS_DIR, assertId(id)), { recursive: true, force: true });
 }
 
-export function newProject(partial: Partial<Project>): Project {
+export async function newProject(partial: Partial<Project>): Promise<Project> {
+  const design = initialDesign(await listProjects());
   const now = new Date().toISOString();
   return {
     id: uid(),
@@ -74,12 +79,12 @@ export function newProject(partial: Partial<Project>): Project {
     updatedAt: now,
     source: null,
     slides: [],
-    design: defaultDesign(),
     caption: "",
     hashtags: [],
     chat: [],
     images: [],
     ...partial,
+    design: partial.design ? defaultDesign(partial.design) : design,
   };
 }
 

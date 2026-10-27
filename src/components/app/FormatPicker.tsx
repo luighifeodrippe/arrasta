@@ -40,8 +40,8 @@ export function FormatPicker({
               aria-checked={active}
               onClick={() => onChange(option.id)}
               className={cn(
-                "flex h-7 items-center gap-1 rounded-full border px-3 text-[12.5px] transition-colors",
-                active ? "selected text-ink" : "border-white/[0.09] text-ink-2 hover:border-white/[0.18] hover:text-ink",
+                "flex h-8 items-center gap-1 rounded-full px-3 text-[13px] font-medium shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1)] transition-colors",
+                active ? "bg-white/[0.12] text-white" : "text-ink-2 hover:bg-white/[0.06] hover:text-ink",
               )}
             >
               {active && <Icon icon={Tick02Icon} className="size-3" />}

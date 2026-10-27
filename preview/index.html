@@ -2,75 +2,417 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
-    <meta name="description" content="Crie carrosséis na sua voz com sua própria conta do ChatGPT. Sem chave nem cobrança de API separada. Conheça o Arrasta AI e instale no seu computador.">
-    <title>Arrasta AI — carrosséis na sua voz</title>
-    <link rel="canonical" href="https://luighi.com/arrasta/">
-    <meta property="og:title" content="Arrasta AI — carrosséis na sua voz">
-    <meta property="og:description" content="Sua conta do ChatGPT. Sem cobrança de API. Código aberto para rodar no seu computador.">
+    <title>Arrasta AI — qualquer link vira carrossel, na sua voz</title>
+    <meta name="description" content="Mande o link do GitHub pro ChatGPT e ele instala o Arrasta AI no seu computador. Link, texto ou prints viram carrossel na sua voz, com a sua conta do ChatGPT e sem chave de API. Tutorial completo, código aberto.">
+    <link rel="canonical" href="https://luighi.com/noface/">
+    <meta property="og:title" content="Arrasta AI — qualquer link vira carrossel">
+    <meta property="og:description" content="Na sua voz, com a sua conta do ChatGPT. Sem chave de API. Mande o link pro ChatGPT e ele instala.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://luighi.com/arrasta/">
-    <meta property="og:image" content="https://luighi.com/arrasta/assets/editor.jpg">
+    <meta property="og:url" content="https://luighi.com/noface/">
+    <meta property="og:image" content="https://luighi.com/noface/assets/compartilhar.jpg">
     <meta property="og:locale" content="pt_BR">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
-    <link rel="preload" href="./assets/wix-madefor-text-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./assets/fontes/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="./styles.css">
     <script src="./script.js" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
-    <header class="header shell">
-      <a class="logo" href="./" aria-label="Arrasta AI — início">
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+    <div class="grao" aria-hidden="true"></div>
+
+    <header class="topo">
+      <a class="marca" href="./" aria-label="Arrasta AI, início">
         <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-          <rect x="23.5" y="7.5" width="6" height="17" rx="2.6" fill="#fff" opacity=".26"/>
-          <rect x="2.5" y="4" width="18.5" height="24" rx="5" fill="#fff"/>
-          <path d="M7.6 16h8.6m-3.3-3.6L16.5 16l-3.6 3.6" stroke="#ff3500" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="23.5" y="7.5" width="6" height="17" rx="2.6" fill="#f5f5f7" opacity=".28"/>
+          <rect x="2.5" y="4" width="18.5" height="24" rx="5" fill="#f5f5f7"/>
+          <path d="M7.6 16h8.6m-3.3-3.6L16.5 16l-3.6 3.6" stroke="#f84000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
         </svg>
         <span>Arrasta AI</span>
       </a>
-      <a class="button button-small control" href="https://github.com/luighifeodrippe/arrasta">Ver no GitHub <span aria-hidden="true">↗</span></a>
+      <nav class="topo-links" aria-label="Seções">
+        <a href="#operacao">Operação</a>
+        <a href="#tutorial">Tutorial</a>
+        <a href="#modelos">Modelos</a>
+        <a href="#perguntas">Perguntas</a>
+      </nav>
+      <div class="topo-acoes">
+        <a class="topo-estrela" href="https://github.com/luighifeodrippe/arrasta" target="_blank" rel="noopener" aria-label="Dar estrela no GitHub"><span class="astro" aria-hidden="true"><i></i></span><span class="topo-estrela-texto"><span class="so-largo">Estrela no </span>GitHub</span><span class="estrela-n" data-estrelas hidden></span></a>
+        <a class="botao botao-aceso botao-pequeno" href="#instalar">Instalar</a>
+      </div>
     </header>
 
     <main id="conteudo">
-      <section class="hero shell" aria-labelledby="titulo">
-        <p class="badge"><span aria-hidden="true"></span>Open source · roda no seu computador</p>
-        <h1 id="titulo">Sua ideia vira carrossel.<br><span>Na sua voz.</span></h1>
-        <p class="account"><span>Sua conta do ChatGPT.</span> <span>Sem cobrança de API.</span></p>
-        <p class="intro">Comece com uma ideia, prints ou um link acessível. O ChatGPT organiza o conteúdo e escreve no seu estilo. Você dá o acabamento.</p>
-        <div class="actions">
-          <a class="button keycap" href="#instalar">Instalar no meu computador <span aria-hidden="true">→</span></a>
-          <a class="button control" href="#editor">Ver o editor</a>
+      <!-- 1 · abertura -->
+      <section class="abertura" aria-labelledby="titulo">
+        <canvas class="brasas" aria-hidden="true"></canvas>
+        <div class="casca abertura-texto">
+          <h1 id="titulo" class="titulo titulo-abertura"><span class="quente">Qualquer link vira carrossel.</span></h1>
+          <p class="texto abertura-frase"><span>Na sua voz, com a sua conta do ChatGPT.</span> Sem chave de API e sem cobrança separada.</p>
+          <div class="campo" id="instalar">
+            <div class="campo-linha">
+              <svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+              <span class="campo-url"><span class="campo-dominio">github.com/</span>luighifeodrippe/arrasta</span>
+              <button class="tecla copiar" type="button" data-copiar-de="#prompt-completo" aria-label="Copiar o prompt completo"><svg class="i-copiar" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11.5" height="11.5" rx="2.6"/><path d="M15 5.2V4.6A1.6 1.6 0 0 0 13.4 3H4.6A1.6 1.6 0 0 0 3 4.6v8.8A1.6 1.6 0 0 0 4.6 15h.6"/></svg><svg class="i-feito" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg><span class="copiar-texto">Copiar<span class="so-largo"> prompt</span></span></button>
+            </div>
+            <p class="campo-nota">Copia o prompt completo. Cole no ChatGPT Work do seu computador e ele instala, abre e configura tudo.</p>
+          </div>
+          <div class="abertura-acoes">
+            <a class="estrela-cta" href="https://github.com/luighifeodrippe/arrasta" target="_blank" rel="noopener"><span class="astro" aria-hidden="true"><i></i></span><span class="ef-texto"><b>Dar estrela no GitHub</b><span>Pra receber todas as futuras melhorias que eu for adicionando</span></span><span class="estrela-n" data-estrelas hidden></span></a>
+            <a class="seco" href="#tutorial">Ver o tutorial completo <span aria-hidden="true">↓</span></a>
+          </div>
         </div>
-        <p class="account-note">Sem chave de API. O uso segue os limites e a disponibilidade do Codex na sua conta.</p>
+
+        <figure class="casca abertura-tela">
+          <div class="moldura moldura-grande">
+            <img src="./assets/telas/editor.webp" width="1600" height="1000" alt="O editor do Arrasta AI com um carrossel de prompts: os cards lado a lado, a barra de formatação em cima e a barra do ChatGPT embaixo." fetchpriority="high">
+          </div>
+          <figcaption class="legenda">O editor do Arrasta, com um carrossel de prompts.</figcaption>
+        </figure>
       </section>
 
-      <figure id="editor" class="editor shell">
-        <a class="editor-image" href="./assets/editor.jpg" aria-label="Abrir imagem do editor em tamanho original">
-          <img src="./assets/editor.jpg" width="1600" height="900" alt="Editor do Arrasta AI com painel de design, modelos, fontes e carrossel de exemplo com o perfil @seuperfil." fetchpriority="high">
-        </a>
-        <figcaption><span>Imagem do editor com conteúdo de exemplo.</span><span>Login, criação e exportação funcionam no app instalado localmente.</span></figcaption>
-      </figure>
+      <!-- 2 · a operação: o formato que fez o perfil crescer, com os números oficiais -->
+      <section class="secao operacao" id="operacao" aria-labelledby="operacao-titulo">
+        <div class="operacao-texto">
+          <p class="rotulo">Parte aberta da operação NØFACE</p>
+          <h2 id="operacao-titulo" class="titulo">Resolvi abrir parte <em>da minha operação.</em></h2>
+          <p class="texto">A NØFACE é nossa operação de perfis sem rosto, com mais de 30 milhões de seguidores. O carrossel é um dos formatos que trouxeram mais de 300 mil só pro @pelainteligencia.</p>
+          <p class="texto">Construí a estrutura do Arrasta com Codex. O ChatGPT Work conduz o processo: instalar, conhecer sua voz e suas referências e criar o primeiro carrossel.</p>
+          <p class="texto operacao-seu">Agora o sistema é seu: pode modificar, usar, vender. Faça o que quiser.</p>
+          <a class="assinatura" href="https://www.instagram.com/pelainteligencia/" target="_blank" rel="noopener">
+            <img src="./assets/operacao/luighi.webp" width="160" height="160" alt="">
+            <span><b>Luighi Feodrippe</b><span>@pelainteligencia</span></span>
+          </a>
+        </div>
+        <div class="operacao-prova">
+          <figure class="operacao-capa">
+            <div class="moldura"><img src="./assets/operacao/capa-2025.webp" width="720" height="900" loading="lazy" alt="A capa do carrossel É assim que os Profissionais utilizam o Poder do ChatGPT (em 2025), no formato de post do X com foto, nome e @."></div>
+            <figcaption class="legenda">Postei esse carrossel 3 vezes. As 3 passaram de 1 milhão de visualizações.</figcaption>
+          </figure>
+          <figure class="barras">
+            <p class="rotulo">Meus 13 carrosséis, com os números oficiais do Instagram</p>
+            <ol class="barras-lista" aria-label="Visualizações de cada carrossel, em ordem de publicação">
+                <li class="barra mi rep" style="--h:1.000" data-n="4,2 mi" aria-label="6 de julho de 2024: 4,2 milhões de visualizações"><i></i></li>
+                <li class="barra mi" style="--h:0.530" data-n="2,3 mi" aria-label="22 de julho de 2024: 2,3 milhões de visualizações"><i></i></li>
+                <li class="barra mi" style="--h:0.687" data-n="2,9 mi" aria-label="9 de setembro de 2024: 2,9 milhões de visualizações"><i></i></li>
+                <li class="barra mi rep" style="--h:0.741" data-n="3,1 mi" aria-label="10 de outubro de 2024: 3,1 milhões de visualizações"><i></i></li>
+                <li class="barra mi" style="--h:0.607" data-n="2,6 mi" aria-label="6 de novembro de 2024: 2,6 milhões de visualizações"><i></i></li>
+                <li class="barra" style="--h:0.162" data-n="688 mil" aria-label="10 de dezembro de 2024: 688 mil visualizações"><i></i></li>
+                <li class="barra mi rep" style="--h:0.261" data-n="1,1 mi" aria-label="5 de janeiro de 2025: 1,1 milhão de visualizações"><i></i></li>
+                <li class="barra mi" style="--h:0.711" data-n="3,0 mi" aria-label="8 de janeiro de 2025: 3,0 milhões de visualizações"><i></i></li>
+                <li class="barra" style="--h:0.027" data-n="115 mil" aria-label="1º de fevereiro de 2025: 115 mil visualizações"><i></i></li>
+                <li class="barra" style="--h:0.214" data-n="909 mil" aria-label="26 de março de 2025: 909 mil visualizações"><i></i></li>
+                <li class="barra mi" style="--h:0.309" data-n="1,3 mi" aria-label="20 de maio de 2025: 1,3 milhão de visualizações"><i></i></li>
+                <li class="barra mi" style="--h:0.309" data-n="1,3 mi" aria-label="24 de maio de 2025: 1,3 milhão de visualizações"><i></i></li>
+                <li class="barra" style="--h:0.130" data-n="551 mil" aria-label="31 de dezembro de 2025: 551 mil visualizações"><i></i></li>
+            </ol>
+            <p class="barras-legenda"><span class="ponto-rep" aria-hidden="true"></span>o mesmo carrossel, postado 3 vezes</p>
+            <p class="barras-frase"><b>9 de 13</b> passaram de 1 milhão. <b>24 milhões</b> de visualizações no total.</p>
+            <p class="barras-fonte">Fonte: exportação oficial da Meta, fevereiro de 2024 a fevereiro de 2026.</p>
+          </figure>
+        </div>
+      </section>
 
-      <section id="instalar" class="installation shell" aria-labelledby="instalar-titulo">
-        <div class="installation-content">
-          <h2 id="instalar-titulo">Instale com um pedido.</h2>
-          <ol class="steps">
-            <li><span class="step-number" aria-hidden="true">1</span><div><h3>Abra o ChatGPT Work ou o Codex</h3><p>Use um agente com terminal e acesso autorizado ao seu computador.</p></div></li>
-            <li><span class="step-number" aria-hidden="true">2</span><div><h3>Cole o pedido abaixo</h3><p>Ele instala o app e ajuda a configurar seu perfil, sua voz e suas referências.</p></div></li>
-            <li><span class="step-number" aria-hidden="true">3</span><div><h3>Entre com sua conta do ChatGPT</h3><p>No app local, conclua o login oficial e crie seu primeiro carrossel.</p></div></li>
+      <!-- 3 · o tutorial: a estrada acende passo a passo -->
+      <section class="secao rota" id="tutorial" aria-labelledby="tutorial-titulo">
+        <div class="rota-cabeca">
+          <p class="rotulo">Tutorial completo</p>
+          <h2 id="tutorial-titulo" class="titulo">Do link ao post, <em>passo a passo.</em></h2>
+          <p class="texto">Onze passos, do jeito que aparecem na sua tela.</p>
+        </div>
+
+        <div class="rota-mapa" aria-hidden="true">
+          <span class="mapa-n">Passo 1 de 11</span><span class="mapa-nome">Instalar</span><span class="mapa-barra"><i></i></span>
+        </div>
+
+        <div class="rota-palco">
+          <span class="aqui" aria-hidden="true"><i></i></span>
+          <ol class="paradas">
+            <li class="parada" data-curto="Instalar" data-fio="o app abre no navegador">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">01</span>
+                <p class="rotulo">Passo 01</p>
+                <h3 class="parada-nome">Instale com um link</h3>
+                <p class="texto parada-frase">Copie o prompt e cole no ChatGPT Work do seu computador. Ele instala, abre o app e já pergunta seu @.</p>
+                <p class="detalhes">ChatGPT Work ou Codex · Mac, Windows ou Linux · Sem saber programar</p>
+              </div>
+              <div class="parada-visual parada-visual-pedido">
+                <div class="pedido-card">
+                  <p class="pedido-rotulo">O prompt que vai pro ChatGPT Work</p>
+                  <div class="prompt">
+                    <p class="prompt-texto" id="prompt-completo">Quero instalar o Arrasta AI no meu computador e terminar com o meu primeiro carrossel pronto. É um app gratuito e de código aberto: <b>https://github.com/luighifeodrippe/arrasta</b>
+
+O guia de instalação está no próprio repositório, no arquivo AGENTS.md. Leia antes de começar e siga nesta ordem:
+
+1. Confira se você consegue rodar comandos no meu computador. Se estiver numa tarefa na nuvem, me avise e me passe os comandos para eu rodar.
+2. Baixe o repositório numa pasta de projetos. Se ele já estiver aqui, use o que existe, sem apagar nada. Confira se o Node.js é 20.9 ou mais novo; se faltar, me diga como instalar no meu sistema.
+3. Na pasta do Arrasta, rode npm run setup e espere terminar. Depois rode npm start e abra http://localhost:3737 no meu navegador.
+4. No app, eu clico em &quot;Entrar com ChatGPT&quot; e entro com a minha conta. Não me peça senha nem token aqui no chat.
+5. Me pergunte o meu @ do Instagram e os @s que eu quero usar como referência de escrita. Use a importação do próprio app para analisar o que for público e configurar a minha voz. Se o Instagram não deixar ler, me peça textos meus ou prints.
+6. Depois me pergunte só o que faltar: o objetivo do meu conteúdo, o meu público e o que eu gosto no visual.
+7. Faça comigo o primeiro carrossel, revise os cards e exporte os PNGs.
+
+No fim, me diga o endereço do app, o que ficou configurado e onde está o arquivo exportado.</p>
+                  </div>
+                  <div class="pedido-pe">
+                    <button class="ver-tudo" type="button" aria-expanded="false" aria-controls="prompt-completo">Ver tudo</button>
+                    <button class="tecla copiar" type="button" data-copiar-de="#prompt-completo" aria-label="Copiar o prompt completo"><svg class="i-copiar" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11.5" height="11.5" rx="2.6"/><path d="M15 5.2V4.6A1.6 1.6 0 0 0 13.4 3H4.6A1.6 1.6 0 0 0 3 4.6v8.8A1.6 1.6 0 0 0 4.6 15h.6"/></svg><svg class="i-feito" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg><span class="copiar-texto">Copiar prompt</span></button>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li class="parada" data-curto="Entrar" data-fio="Continuar com ChatGPT">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">02</span>
+                <p class="rotulo">Passo 02</p>
+                <h3 class="parada-nome">Entre com o ChatGPT</h3>
+                <p class="texto parada-frase">Usa a sua própria conta. O login acontece na página da OpenAI e fica salvo no seu computador.</p>
+                <p class="detalhes">Sem chave de API · Sem cobrança separada · Vale o limite do seu plano</p>
+              </div>
+              <figure class="parada-visual">
+                <div class="moldura"><img src="./assets/telas/entrar.webp" width="1008" height="768" loading="lazy" alt="Janela Entre com sua conta do ChatGPT, com o botão Continuar com ChatGPT."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Sua voz" data-fio="volta pro início">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">03</span>
+                <p class="rotulo">Passo 03</p>
+                <h3 class="parada-nome">Ensine a sua voz</h3>
+                <p class="texto parada-frase">Mande seu @ ou cole textos seus. O app aprende o seu tom, o ritmo e as palavras que você usa.</p>
+                <p class="detalhes">Seu @ do Instagram · Seus textos · Perfis de referência</p>
+              </div>
+              <figure class="parada-visual">
+                <div class="moldura"><img src="./assets/telas/voz.webp" width="1100" height="926" loading="lazy" alt="Ajustes, aba Sua voz: perfis de referência, seu @ e uma caixa para colar textos seus."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Começar" data-fio="escolhe o formato">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">04</span>
+                <p class="rotulo">Passo 04</p>
+                <h3 class="parada-nome">Comece por qualquer coisa</h3>
+                <p class="texto parada-frase">Cole um link do Instagram, do YouTube, do X ou de um site. Ou um texto, prints, ou só a ideia.</p>
+                <p class="detalhes">Link · Texto ou ideia · Prints</p>
+              </div>
+              <figure class="parada-visual">
+                <div class="moldura"><img src="./assets/telas/comece.webp" width="1400" height="500" loading="lazy" alt="A caixa do início com as abas Link, Texto e Prints e um link do YouTube colado."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Formato" data-fio="clica em Criar">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">05</span>
+                <p class="rotulo">Passo 05</p>
+                <h3 class="parada-nome">Escolha o formato</h3>
+                <p class="texto parada-frase">Carrossel de prompts, de ferramentas, storytelling, lista de dicas, passo a passo… ou salve o seu.</p>
+                <p class="detalhes">7 formatos prontos · Crie o seu · Recriando um viral, escolha quanto mudar</p>
+              </div>
+              <figure class="parada-visual">
+                <div class="moldura"><img src="./assets/telas/formato.webp" width="1400" height="711" loading="lazy" alt="Uma ideia escrita na aba Texto e o formato Carrossel de prompts escolhido entre os sete formatos."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Escrever" data-fio="o carrossel abre no editor">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">06</span>
+                <p class="rotulo">Passo 06</p>
+                <h3 class="parada-nome">O ChatGPT escreve na sua voz</h3>
+                <p class="texto parada-frase">Ele organiza o conteúdo em 6 a 9 slides, do seu jeito. Com um texto colado, leva cerca de 30 segundos.</p>
+                <p class="detalhes">6 a 9 slides · Cerca de 30 segundos · Gere de novo com um ajuste</p>
+              </div>
+              <figure class="parada-visual">
+                <div class="moldura moldura-media"><img src="./assets/telas/escrevendo.webp" width="1300" height="1192" loading="lazy" alt="O editor enquanto o ChatGPT escreve: a ideia e o aviso Escrevendo o carrossel na sua voz."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Editar" data-fio="pede um ajuste">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">07</span>
+                <p class="rotulo">Passo 07</p>
+                <h3 class="parada-nome">Edite direto no card</h3>
+                <p class="texto parada-frase">Clique no texto e escreva. Destaque palavras e troque fonte, tamanho, cor, espaçamento, imagem e fundo.</p>
+                <p class="detalhes">10 fontes · Cor e destaque · Imagem e fundo · Desfazer e refazer</p>
+              </div>
+              <figure class="parada-visual parada-visual-par">
+                <div class="moldura moldura-faixa"><img src="./assets/telas/barra.webp" width="1500" height="90" loading="lazy" alt="A barra de formatação: fonte, tamanho, cor, destaque, espaçamento, alinhamento, Organizar, imagem, fundo, foto e @ e Reescrever."></div>
+                <div class="moldura moldura-estreita"><img src="./assets/telas/editar.webp" width="1000" height="1174" loading="lazy" alt="Um card de prompt em edição, com uma palavra do título selecionada."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Reescrever" data-fio="arruma o visual">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">08</span>
+                <p class="rotulo">Passo 08</p>
+                <h3 class="parada-nome">Peça pro ChatGPT ajustar</h3>
+                <p class="texto parada-frase">Reescreva um título num clique, ou peça uma mudança no carrossel inteiro, em português mesmo.</p>
+                <p class="detalhes">Mais curto · Gancho mais forte · Mais simples · Outra versão</p>
+              </div>
+              <figure class="parada-visual parada-visual-par">
+                <div class="moldura moldura-estreita"><img src="./assets/telas/reescrever.webp" width="1200" height="1436" loading="lazy" alt="O menu Reescrever com o ChatGPT aberto, com as opções Mais curto, Gancho mais forte, Mais simples, Outra versão e Corrigir erros."></div>
+                <div class="moldura moldura-faixa"><img src="./assets/telas/pedir.webp" width="1500" height="211" loading="lazy" alt="A barra de baixo com o pedido Deixe os títulos mais curtos e diretos."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Encaixe" data-fio="confere no Instagram">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">09</span>
+                <p class="rotulo">Passo 09</p>
+                <h3 class="parada-nome">Alinhe com as linhas de encaixe</h3>
+                <p class="texto parada-frase">Arraste a foto, o título, o texto ou a imagem. As linhas mostram quando alinhou. Organizar volta tudo pro lugar.</p>
+                <p class="detalhes">Margem · Centro · Recorte do Explorar · Organizar</p>
+              </div>
+              <figure class="parada-visual">
+                <div class="moldura moldura-estreita"><img src="./assets/telas/mover.webp" width="1000" height="1174" loading="lazy" alt="A foto e o @ sendo arrastados até o centro do card, com a linha de encaixe no meio."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Prévia" data-fio="baixa os cards">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">10</span>
+                <p class="rotulo">Passo 10</p>
+                <h3 class="parada-nome">Veja como fica no Instagram</h3>
+                <p class="texto parada-frase">Ligue as guias do Explorar no próprio card e abra a prévia de Feed, Story, Explorar e Reels.</p>
+                <p class="detalhes">Guias do Instagram · Zoom livre · Seleção arrastando</p>
+              </div>
+              <figure class="parada-visual parada-visual-lado">
+                <div class="moldura"><img src="./assets/telas/quadro.webp" width="1600" height="1281" loading="lazy" alt="Três cards selecionados com a área de seleção, as guias do Explorar ligadas e a barra com Organizar, Duplicar, Baixar e Excluir."></div>
+                <div class="moldura moldura-estreita"><img src="./assets/telas/previa.webp" width="1100" height="1628" loading="lazy" alt="A prévia do Explorar com a capa no meio da grade e a área de segurança marcada."></div>
+              </figure>
+            </li>
+
+            <li class="parada" data-curto="Baixar">
+              <div class="parada-texto">
+                <span class="no" aria-hidden="true">11</span>
+                <p class="rotulo">Passo 11</p>
+                <h3 class="parada-nome">Baixe e poste</h3>
+                <p class="texto parada-frase">PNG em 1080 × 1440 ou um ZIP com todos os cards e a legenda pronta pra colar.</p>
+                <p class="detalhes">3:4 ou 4:5 · PNG · ZIP com a legenda</p>
+              </div>
+              <figure class="parada-visual">
+                <div class="moldura moldura-estreita"><img src="./assets/telas/baixar.webp" width="1100" height="1439" loading="lazy" alt="A janela Baixar cards com os nove cards marcados e o botão Baixar ZIP."></div>
+              </figure>
+            </li>
           </ol>
-          <div class="prompt-box">
-            <div class="prompt-header"><label for="install-prompt">Pedido de instalação</label><button class="button button-small control" type="button" id="copy-prompt">Copiar pedido</button></div>
-            <textarea id="install-prompt" readonly spellcheck="false">Instale e abra o Arrasta AI no meu computador, usando minha própria conta do ChatGPT, sem configurar chave de API: https://github.com/luighifeodrippe/arrasta. Leia o AGENTS.md e siga o onboarding. Pergunte meu @ do Instagram e os @s que quero usar como referências de escrita; analise as amostras públicas disponíveis e configure minha voz. Depois pergunte apenas meus objetivos, gostos e o que faltar. Se o Instagram bloquear a leitura, me ajude com uma alternativa. Quero terminar com um primeiro carrossel revisado e exportado.</textarea>
-            <p class="copy-status" id="copy-status" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <!-- 4 · os modelos -->
+      <section class="secao modelos" id="modelos" aria-labelledby="modelos-titulo">
+        <div class="cabeca">
+          <p class="rotulo">9 modelos</p>
+          <h2 id="modelos-titulo" class="titulo">O mesmo conteúdo, <em>9 jeitos.</em></h2>
+          <p class="texto">Troque o visual do carrossel inteiro num clique. Fonte, cor e fundo também mudam.</p>
+        </div>
+        <div class="esteira" tabindex="0" aria-label="Os 9 modelos com o mesmo card de prompt">
+          <ul class="esteira-trilho">
+            <li><img src="./assets/modelos/perfil.webp" width="600" height="800" loading="lazy" alt="Modelo Perfil"><span>Perfil</span></li>
+            <li><img src="./assets/modelos/editorial.webp" width="600" height="800" loading="lazy" alt="Modelo Editorial"><span>Editorial</span></li>
+            <li><img src="./assets/modelos/foto.webp" width="600" height="800" loading="lazy" alt="Modelo Foto"><span>Foto</span></li>
+            <li><img src="./assets/modelos/minimal.webp" width="600" height="800" loading="lazy" alt="Modelo Minimal"><span>Minimal</span></li>
+            <li><img src="./assets/modelos/neon.webp" width="600" height="800" loading="lazy" alt="Modelo Neon"><span>Neon</span></li>
+            <li><img src="./assets/modelos/notas.webp" width="600" height="800" loading="lazy" alt="Modelo Notas"><span>Notas</span></li>
+            <li><img src="./assets/modelos/revista.webp" width="600" height="800" loading="lazy" alt="Modelo Revista"><span>Revista</span></li>
+            <li><img src="./assets/modelos/poster.webp" width="600" height="800" loading="lazy" alt="Modelo Pôster"><span>Pôster</span></li>
+            <li><img src="./assets/modelos/caderno.webp" width="600" height="800" loading="lazy" alt="Modelo Caderno"><span>Caderno</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 5 · tudo que vem -->
+      <section class="secao tudo" aria-labelledby="tudo-titulo">
+        <div class="cabeca">
+          <p class="rotulo">O que você leva</p>
+          <h2 id="tudo-titulo" class="titulo">Tudo que vem <em>no Arrasta.</em></h2>
+        </div>
+        <ul class="tudo-lista">
+          <li><b>Grátis e de código aberto</b><span>Licença MIT: modifique, use e venda.</span></li>
+          <li><b>Roda no seu computador</b><span>Mac, Windows ou Linux, no navegador.</span></li>
+          <li><b>Sua conta do ChatGPT</b><span>Sem chave de API e sem cobrança separada.</span></li>
+          <li><b>A sua voz</b><span>Seu @, seus textos e perfis de referência.</span></li>
+          <li><b>Qualquer ponto de partida</b><span>Link, texto, ideia ou prints.</span></li>
+          <li><b>7 formatos prontos</b><span>E os seus, salvos para reusar.</span></li>
+          <li><b>Quanto mudar do original</b><span>Nada, pouco, médio ou muito.</span></li>
+          <li><b>9 modelos, 10 fontes</b><span>Cores, fundo e destaque do seu jeito.</span></li>
+          <li><b>Edição direto no card</b><span>Clique e escreva, com desfazer.</span></li>
+          <li><b>ChatGPT no editor</b><span>Reescreva um título ou peça uma mudança.</span></li>
+          <li><b>Linhas de encaixe</b><span>Arraste as peças; Organizar volta tudo.</span></li>
+          <li><b>Quadro livre</b><span>Zoom com pinça, mover e seleção arrastando.</span></li>
+          <li><b>Guias do Instagram</b><span>O recorte do Explorar no próprio card.</span></li>
+          <li><b>Prévia no Instagram</b><span>Feed, Story, Explorar e Reels.</span></li>
+          <li><b>Card de prompt</b><span>Bloco com letra própria e os [campos] em cor.</span></li>
+          <li><b>PNG ou ZIP</b><span>1080 × 1440 ou 1080 × 1350, com a legenda.</span></li>
+        </ul>
+      </section>
+
+      <!-- 6 · perguntas -->
+      <section class="secao perguntas" id="perguntas" aria-labelledby="perguntas-titulo">
+        <div class="cabeca">
+          <p class="rotulo">Perguntas</p>
+          <h2 id="perguntas-titulo" class="titulo">Antes de <em>instalar.</em></h2>
+        </div>
+        <div class="perguntas-lista">
+          <details>
+            <summary>Precisa pagar alguma coisa?</summary>
+            <p>O Arrasta é grátis e de código aberto. Para escrever, ele usa o Codex da sua conta do ChatGPT: vale o limite do seu plano, sem chave de API e sem cobrança separada. Não é uso ilimitado.</p>
+          </details>
+          <details>
+            <summary>Preciso saber programar?</summary>
+            <p>Não. Você cola o prompt no ChatGPT Work ou no Codex do computador e ele instala lendo o guia do repositório. Se preferir fazer à mão, o README tem a instalação passo a passo para Mac e Windows.</p>
+          </details>
+          <details>
+            <summary>Funciona no celular?</summary>
+            <p>O app precisa de um computador (Mac, Windows ou Linux). Do celular, dá para mandar o link pro ChatGPT do seu computador, desde que ele esteja ligado e conectado ao app do ChatGPT.</p>
+          </details>
+          <details>
+            <summary>De onde ele consegue ler?</summary>
+            <p>De carrosséis públicos do Instagram, vídeos do YouTube com legenda, posts do X e artigos, quando a fonte deixa ler. Se não der, cole o texto ou mande prints.</p>
+          </details>
+          <details>
+            <summary>E os meus dados?</summary>
+            <p>Seus carrosséis, imagens e o login ficam numa pasta no seu computador. Para escrever, o app envia à OpenAI os textos e imagens necessários. O Arrasta não tem servidor próprio no meio.</p>
+          </details>
+          <details>
+            <summary>Posso usar no meu negócio?</summary>
+            <p>Pode. A licença é MIT: modifique, use e venda. O sistema é seu.</p>
+          </details>
+        </div>
+      </section>
+
+      <!-- 7 · fim -->
+      <section class="fim" aria-labelledby="fim-titulo">
+        <canvas class="brasas" aria-hidden="true"></canvas>
+        <div class="casca fim-texto">
+          <h2 id="fim-titulo" class="titulo titulo-fim">Mande o link. <span class="quente">O resto é com o ChatGPT.</span></h2>
+          <div class="campo">
+            <div class="campo-linha">
+              <svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+              <span class="campo-url"><span class="campo-dominio">github.com/</span>luighifeodrippe/arrasta</span>
+              <button class="tecla copiar" type="button" data-copiar-de="#prompt-completo" aria-label="Copiar o prompt completo"><svg class="i-copiar" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11.5" height="11.5" rx="2.6"/><path d="M15 5.2V4.6A1.6 1.6 0 0 0 13.4 3H4.6A1.6 1.6 0 0 0 3 4.6v8.8A1.6 1.6 0 0 0 4.6 15h.6"/></svg><svg class="i-feito" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg><span class="copiar-texto">Copiar<span class="so-largo"> prompt</span></span></button>
+            </div>
+            <p class="campo-nota">Copia o prompt completo. Cole no ChatGPT Work do seu computador e ele instala, abre e configura tudo.</p>
           </div>
-          <p class="local-note">Esta página é uma demonstração. Para usar a IA, instale o Arrasta AI localmente e conecte uma conta com acesso ao Codex. A assinatura e seus limites continuam valendo.</p>
-          <p class="help-links"><a href="https://github.com/luighifeodrippe/arrasta#instalação-manual">Ver instalação manual</a><a href="https://learn.chatgpt.com/docs/auth">Entender o login com ChatGPT</a></p>
+          <div class="fim-acoes">
+            <a class="estrela-cta" href="https://github.com/luighifeodrippe/arrasta" target="_blank" rel="noopener"><span class="astro" aria-hidden="true"><i></i></span><span class="ef-texto"><b>Dar estrela no GitHub</b><span>Pra receber todas as futuras melhorias que eu for adicionando</span></span><span class="estrela-n" data-estrelas hidden></span></a>
+            <p class="fim-licenca">Código aberto, licença MIT: pode modificar, usar e vender. O sistema é seu.</p>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer class="footer shell"><span>Arrasta AI · <a href="https://github.com/luighifeodrippe/arrasta/blob/main/LICENSE">MIT</a></span><span>Por <a href="https://luighi.com">Luighi Feodrippe</a> · <a href="https://github.com/luighifeodrippe/arrasta">GitHub</a></span></footer>
+    <a class="estrela-cta estrela-flutuante" href="https://github.com/luighifeodrippe/arrasta" target="_blank" rel="noopener" aria-label="Deixe sua estrela no GitHub pra receber as futuras melhorias">
+      <span class="astro" aria-hidden="true"><i></i></span>
+      <span class="ef-texto"><b>Deixe sua estrela no GitHub</b><span>Pra receber as futuras melhorias</span></span>
+      <span class="estrela-n" data-estrelas hidden></span>
+    </a>
+
+    <footer class="rodape casca">
+      <span>Arrasta AI · <a href="https://github.com/luighifeodrippe/arrasta/blob/main/LICENSE">licença MIT</a></span>
+      <span>Por <a href="https://luighi.com">Luighi Feodrippe</a> · <a href="https://github.com/luighifeodrippe/arrasta">GitHub</a></span>
+    </footer>
+    <p class="aviso-copiado" role="status" aria-live="polite"></p>
   </body>
 </html>

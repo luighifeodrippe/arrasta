@@ -3,11 +3,12 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "./cn";
 
 const button = cva(
-  "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap font-medium transition-[transform,background-color,border-color,opacity,box-shadow] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 [&_svg]:shrink-0",
+  "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap font-medium transition-[transform,background-color,border-color,opacity,box-shadow] duration-150 ease-out disabled:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         primary: "keycap hover:brightness-[1.03]",
+        lit: "button-lit",
         glass: "control text-ink hover:border-line-strong hover:bg-white/[0.08]",
         ghost: "border border-transparent text-ink-2 hover:bg-white/[0.06] hover:text-ink",
         danger: "border border-red-400/20 bg-red-500/10 text-red-300 hover:bg-red-500/20",
@@ -20,6 +21,9 @@ const button = cva(
         "icon-sm": "size-8 rounded-[9px] [&_svg]:size-4",
       },
     },
+    compoundVariants: [
+      { variant: ["primary", "glass", "ghost", "danger"], className: "active:scale-[0.97] disabled:opacity-45" },
+    ],
     defaultVariants: { variant: "glass", size: "md" },
   },
 );

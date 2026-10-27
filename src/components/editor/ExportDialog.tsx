@@ -16,12 +16,14 @@ export function ExportDialog({
   onOpenChange,
   project,
   selectedId,
+  initialSelection,
   onExport,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
   selectedId?: string | null;
+  initialSelection?: string[];
   onExport: (indices: number[]) => void;
 }) {
   const profile = useApp((state) => state.profile);
@@ -30,9 +32,10 @@ export function ExportDialog({
   const [selection, setSelection] = useState<Set<string>>(() => new Set(project.slides.map((slide) => slide.id)));
   const slideIds = project.slides.map((slide) => slide.id).join(",");
 
+  const initialIds = initialSelection?.join(",");
   useEffect(() => {
-    if (open) setSelection(new Set(slideIds.split(",").filter(Boolean)));
-  }, [open, slideIds]);
+    if (open) setSelection(new Set((initialIds ?? slideIds).split(",").filter(Boolean)));
+  }, [open, slideIds, initialIds]);
 
   const indices = project.slides.flatMap((slide, index) => selection.has(slide.id) ? [index] : []);
   const count = indices.length;

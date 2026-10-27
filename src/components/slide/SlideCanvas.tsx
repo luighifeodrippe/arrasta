@@ -3,8 +3,9 @@
 import { createElement, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { fontVar, fontWeight, SERIF_FONTS, SLIDE_W, slideHeight } from "@/lib/defaults";
 import type { Design, FontId, Slide, SlideImage, SlideSize, TextAlign, TextStyle } from "@/lib/types";
-import { EditableText, ImageLayer, type EditBinding } from "./editing";
+import { EditableText, ImageLayer, Movable, MovementProvider, type EditBinding } from "./editing";
 import { joinItems, listItems, rich } from "./rich-text";
+import { joinNumberedTitle, joinPromptBody, parsePromptBody, splitNumberedTitle, type PromptBody } from "@/lib/prompt-block";
 
 export interface SlideIdentity {
   name: string;
@@ -134,12 +135,14 @@ function useAutoFit(deps: unknown[]) {
     const height = box.clientHeight - parseFloat(bounds.paddingTop) - parseFloat(bounds.paddingBottom);
     const width = box.clientWidth - parseFloat(bounds.paddingLeft) - parseFloat(bounds.paddingRight);
     let value = 1;
+    root.dataset.measuringBlocks = "";
     root.style.setProperty("--fit", "1");
     const overflows = () => content.scrollHeight > height + 2 || content.scrollWidth > width + 2;
     while (overflows() && value > 0.5) {
       value = Math.round((value - 0.04) * 100) / 100;
       root.style.setProperty("--fit", String(value));
     }
+    delete root.dataset.measuringBlocks;
     setFit(value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, fontsTick]);
@@ -246,7 +249,7 @@ export function SlideCanvas({
   };
 
   return (
-    <div data-slide-root style={style}>
+    <MovementProvider><div data-slide-root data-free-blocks={edit || Object.keys(slide.offsets ?? {}).length ? "" : undefined} style={style}>
       {backdrop && design.template !== "foto" && (
         <>
           <ImageLayer image={backdrop} edit={edit} style={{ position: "absolute", inset: 0 }} />
@@ -270,7 +273,7 @@ export function SlideCanvas({
       {design.template === "revista" && <RevistaTemplate {...ctx} />}
       {design.template === "poster" && <PosterTemplate {...ctx} />}
       {design.template === "caderno" && <CadernoTemplate {...ctx} />}
-    </div>
+    </div></MovementProvider>
   );
 }
 
@@ -354,18 +357,22 @@ function Field({
   as = "p",
   style,
   placeholder,
+  value = ctx.slide[field],
+  onChange,
+  movable = true,
 }: {
   ctx: TemplateProps;
   field: "title" | "body";
   as?: "p" | "h2";
   style: CSSProperties;
   placeholder: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  movable?: boolean;
 }) {
-  const value = ctx.slide[field];
   const { edit } = ctx;
   const own = field === "title" ? ctx.titleStyle : ctx.bodyStyle;
-  if (!edit) return value ? createElement(as, { style: { margin: 0, ...style, ...own } }, rich(value, ctx.emphasis)) : null;
-  return (
+  const piece = !edit ? (value ? createElement(as, { style: { margin: 0, ...style, ...own } }, rich(value, ctx.emphasis)) : null) : (
     <EditableText
       as={as}
       field={field}
@@ -376,16 +383,16 @@ function Field({
       emphasis={ctx.emphasis}
       placeholder={placeholder}
       edit={edit}
-      onChange={(next) => edit.setText(field, next)}
+      onChange={onChange ?? ((next) => edit.setText(field, next))}
     />
   );
+  return movable && piece ? <Movable slide={ctx.slide} edit={edit} block={field}>{piece}</Movable> : piece;
 }
 
 /** Foto, nome e @ do card: no slide escolhido, um clique abre o editor de perfil. */
 function Identity({ ctx, as = "div", style, children }: { ctx: TemplateProps; as?: "div" | "span"; style?: CSSProperties; children: ReactNode }) {
   const open = ctx.edit?.editIdentity;
-  if (!open) return createElement(as, { style }, children);
-  return createElement(
+  const piece = !open ? createElement(as, { style }, children) : createElement(
     as,
     {
       role: "button",
@@ -407,6 +414,7 @@ function Identity({ ctx, as = "div", style, children }: { ctx: TemplateProps; as
     },
     children,
   );
+  return <Movable slide={ctx.slide} edit={ctx.edit} block="identity">{piece}</Movable>;
 }
 
 function Avatar({ identity, size, ring }: { identity: SlideIdentity; size: number; ring?: string }) {
@@ -482,11 +490,11 @@ function InlineImage({ ctx, radius, style }: { ctx: TemplateProps; radius: numbe
   const image = ctx.inlineImage;
   if (!image) return null;
   return (
-    <ImageLayer
+    <Movable slide={ctx.slide} edit={ctx.edit} block="image"><ImageLayer
       image={image}
       edit={ctx.edit}
       style={{ borderRadius: radius, border: `1px solid ${ctx.colors.line}`, background: "rgb(127 127 127 / 0.12)", ...INTERACTIVE, ...style }}
-    />
+    /></Movable>
   );
 }
 
@@ -535,20 +543,28 @@ function Body({
   color,
   lineHeight = 1.42,
   marker = "filled",
+  radius,
 }: {
   ctx: TemplateProps;
   size: number;
   color: string;
   lineHeight?: number;
   marker?: Marker;
+  radius: number;
 }) {
   const { slide, edit, emphasis, design, bodyStyle } = ctx;
+  // Mantém os mesmos campos durante a edição, inclusive ao esvaziar prompt ou tail.
+  const livePrompt = useRef<{ body: string; parts: PromptBody; hasTail: boolean } | null>(null);
+  if (!edit || livePrompt.current?.body !== slide.body) {
+    const parts = parsePromptBody(slide.body);
+    livePrompt.current = parts ? { body: slide.body, parts, hasTail: Boolean(parts.tail) } : null;
+  }
   const items = listItems(slide.body);
   if (items) {
     const accent = design.accent;
     const update = (next: typeof items) => edit?.setText("body", joinItems(next));
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: `calc(${size * 0.62}px * var(--s) * var(--fit) * var(--gap))` }}>
+      <Movable slide={slide} edit={edit} block="body"><div style={{ display: "flex", flexDirection: "column", gap: `calc(${size * 0.62}px * var(--s) * var(--fit) * var(--gap))` }}>
         {items.map((item, i) => (
           <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 26, textAlign: "left" }}>
             <ItemMarker kind={marker} label={item.marker ?? String(i + 1)} size={size} accent={accent} />
@@ -580,7 +596,62 @@ function Body({
             )}
           </div>
         ))}
-      </div>
+      </div></Movable>
+    );
+  }
+  const parsed = livePrompt.current;
+  if (parsed) {
+    const { parts } = parsed;
+    const { colors } = ctx;
+    const accent = accentOn(design.accent, colors);
+    const mark: CSSProperties = { color: accent, fontWeight: 500 };
+    // O texto em volta do prompt fica um tom abaixo do branco (#c8c8c8 no preto, como nos carrosséis do autor).
+    const soft = /^#?[0-9a-f]{6}$/i.test(colors.fg.trim()) ? alpha(colors.fg, colors.dark ? 0.85 : 0.78) : colors.muted;
+    const proseStyle: CSSProperties = { margin: 0, fontSize: fb(size * 0.78), lineHeight: bl(1.4), color: soft, letterSpacing: "var(--bt)", whiteSpace: "pre-line", ...bodyStyle };
+    const update = (field: "lead" | "prompt" | "tail", value: string) => {
+      const next = field === "prompt" ? { ...parts, prompt: { ...parts.prompt, text: value } } : { ...parts, [field]: value };
+      const body = joinPromptBody(next);
+      livePrompt.current = { body, parts: next, hasTail: parsed.hasTail };
+      edit?.setText("body", body);
+    };
+    const prose = (field: "lead" | "tail") => edit ? (
+      <EditableText
+        key={field}
+        field={field}
+        label={field === "lead" ? "Texto antes do prompt" : "Texto depois do prompt"}
+        ghost="+ Texto"
+        value={parts[field]}
+        style={{ ...proseStyle, ...INTERACTIVE }}
+        emphasis={emphasis}
+        placeholder="Adicionar texto"
+        edit={edit}
+        onChange={(value) => update(field, value)}
+      />
+    ) : parts[field] ? <p key={field} style={proseStyle}>{rich(parts[field], emphasis)}</p> : null;
+    return (
+      <Movable slide={slide} edit={edit} block="body"><div style={{ display: "flex", flexDirection: "column", gap: g(44), width: "100%" }}>
+        {prose("lead")}
+        <div style={{ width: "100%", boxSizing: "border-box", borderRadius: radius, border: `2px solid ${colors.line}`, background: /^#?[0-9a-f]{6}$/i.test(colors.fg.trim()) ? alpha(colors.fg, colors.dark ? 0.06 : 0.045) : "rgb(127 127 127 / 0.1)", padding: "38px 40px 42px", display: "flex", flexDirection: "column", gap: 22, textAlign: "left" }}>
+          <span style={{ textTransform: "uppercase", fontFamily: "var(--font-inter)", fontWeight: 700, fontSize: fb(size * 0.46), letterSpacing: "0.16em", lineHeight: 1, color: accent }}>Prompt</span>
+          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 400, fontSize: fb(size * 0.74), lineHeight: bl(1.42), color: colors.fg, whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
+            “{edit ? (
+              <EditableText
+                as="span"
+                field="prompt"
+                label="Prompt do slide"
+                value={parts.prompt.text}
+                style={{ ...INTERACTIVE }}
+                emphasis={emphasis}
+                mark={mark}
+                placeholder="Escreva o prompt"
+                edit={edit}
+                onChange={(value) => update("prompt", value)}
+              />
+            ) : rich(parts.prompt.text, emphasis, mark)}”
+          </div>
+        </div>
+        {(parts.tail || (edit && parsed.hasTail)) ? prose("tail") : null}
+      </div></Movable>
     );
   }
   return (
@@ -598,22 +669,28 @@ function PerfilTemplate(ctx: TemplateProps) {
   const isCover = slide.kind === "cover";
   const titleSize = isCover ? 66 : slide.kind === "quote" ? 62 : 56;
   const hint = design.showSwipe && isCover && index < total - 1;
+  const liveTitle = useRef<{ title: string; parts: NonNullable<ReturnType<typeof splitNumberedTitle>> } | null>(null);
+  if (!ctx.edit || liveTitle.current?.title !== slide.title) {
+    const parts = splitNumberedTitle(slide.title);
+    liveTitle.current = parts ? { title: slide.title, parts } : null;
+  }
+  const numbered = liveTitle.current?.parts;
+  const coverInset = (slideHeight(design.size) - 1080) / 2;
   return (
-    <div style={{ position: "absolute", inset: 0, padding: "104px 92px 92px", display: "flex", flexDirection: "column", ...LAYER }}>
+    <div style={{ position: "absolute", inset: 0, padding: isCover ? `${coverInset}px 64px` : "104px 64px 92px", display: "flex", flexDirection: "column", ...LAYER }}>
       {design.showCounter && (
         <div style={{ position: "absolute", top: 52, right: 64 }}>
           <Counter index={index} total={total} color={colors.muted} />
         </div>
       )}
       <div
-        ref={boxRef}
+        ref={boxRef} data-block-container=""
         style={{
           flex: 1,
           minHeight: 0, overflow: "hidden",
           display: "flex",
           flexDirection: "column",
           justifyContent: justify(slide, inlineImage ? "flex-start" : "center"),
-          paddingBottom: hint ? 64 : 0,
         }}
       >
         <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: g(44), height: inlineImage ? "100%" : undefined }}>
@@ -629,20 +706,30 @@ function PerfilTemplate(ctx: TemplateProps) {
               </div>
             </Identity>
           )}
-          <div style={{ display: "flex", flexDirection: "column", gap: g(34), textAlign: ctx.align }}>
-            <Field
-              ctx={ctx}
-              field="title"
-              placeholder="Escreva o título"
-              style={{ fontSize: ft(titleSize), fontWeight: 700, lineHeight: tl(1.24), letterSpacing: tt("-0.012em"), whiteSpace: "pre-line" }}
-            />
-            <Body ctx={ctx} size={46} color={colors.fg} />
+          <div style={{ display: "flex", flexDirection: "column", gap: g(22), textAlign: ctx.align }}>
+            {(slide.title || ctx.edit) && <Movable slide={slide} edit={ctx.edit} block="title"><div style={{ display: "flex", flexDirection: "column", gap: g(22) }}>
+              {numbered && <span style={{ fontFamily: "var(--font-inter)", fontWeight: 700, fontSize: ft(30), letterSpacing: "0.08em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: accentOn(design.accent, colors) }}>{numbered.number.padStart(2, "0")}</span>}
+              <Field
+                ctx={ctx}
+                movable={false}
+                field="title"
+                value={numbered?.rest ?? slide.title}
+                onChange={numbered ? (value) => {
+                  const title = joinNumberedTitle(numbered, value);
+                  liveTitle.current = { title, parts: { ...numbered, rest: value } };
+                  ctx.edit?.setText("title", title);
+                } : undefined}
+                placeholder="Escreva o título"
+                style={{ fontSize: ft(titleSize), fontWeight: 700, lineHeight: tl(1.24), letterSpacing: tt("-0.012em"), whiteSpace: "pre-line" }}
+              />
+            </div></Movable>}
+            <Body ctx={ctx} size={46} color={colors.fg} radius={30} />
           </div>
           <InlineImage ctx={ctx} radius={30} style={{ flex: "1 1 auto", minHeight: 320 }} />
         </div>
       </div>
       {hint && (
-        <div style={{ position: "absolute", right: 72, bottom: 64 }}>
+        <div style={{ position: "absolute", right: 64, bottom: 64 }}>
           <SwipeHint color={colors.muted} />
         </div>
       )}
@@ -672,7 +759,7 @@ function EditorialTemplate(ctx: TemplateProps) {
         {design.showCounter && <Counter index={index} total={total} color={colors.muted} />}
       </div>
       <div
-        ref={boxRef}
+        ref={boxRef} data-block-container=""
         style={{
           flex: 1,
           minHeight: 0, overflow: "hidden",
@@ -702,7 +789,7 @@ function EditorialTemplate(ctx: TemplateProps) {
               textWrap: "balance",
             }}
           />
-          <Body ctx={ctx} size={isCover ? 44 : 42} color={colors.muted} />
+          <Body ctx={ctx} size={isCover ? 44 : 42} color={colors.muted} radius={26} />
           <InlineImage ctx={ctx} radius={26} style={{ flex: "1 1 auto", minHeight: 300 }} />
           {isCta && design.showProfile && (
             <Identity ctx={ctx} style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 12, fontFamily: "var(--font-inter)", justifyContent: ctx.flex }}>
@@ -767,7 +854,7 @@ function FotoTemplate(ctx: TemplateProps) {
           )}
           {design.showCounter && <Counter index={index} total={total} color="rgb(255 255 255 / 0.85)" />}
         </div>
-        <div ref={boxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, "flex-end") }}>
+        <div ref={boxRef} data-block-container="" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, "flex-end") }}>
           <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: g(30), textAlign: ctx.align }}>
             <Field
               ctx={ctx}
@@ -785,7 +872,7 @@ function FotoTemplate(ctx: TemplateProps) {
                 textShadow: "0 2px 24px rgb(0 0 0 / 0.35)",
               }}
             />
-            <Body ctx={ctx} size={42} color={colors.muted} />
+            <Body ctx={ctx} size={42} color={colors.muted} radius={24} />
           </div>
         </div>
         {design.showSwipe && isCover && index < total - 1 && (
@@ -807,7 +894,7 @@ function MinimalTemplate(ctx: TemplateProps) {
       <div style={{ height: 40, display: "flex", justifyContent: "center" }}>
         {design.showCounter && <Counter index={index} total={total} color={colors.muted} size={28} />}
       </div>
-      <div ref={boxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, "center") }}>
+      <div ref={boxRef} data-block-container="" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, "center") }}>
         <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: g(40), textAlign: ctx.align, height: inlineImage ? "100%" : undefined }}>
           <Field
             ctx={ctx}
@@ -823,7 +910,7 @@ function MinimalTemplate(ctx: TemplateProps) {
               textWrap: "balance",
             }}
           />
-          <Body ctx={ctx} size={42} color={colors.muted} />
+          <Body ctx={ctx} size={42} color={colors.muted} radius={24} />
           <InlineImage ctx={ctx} radius={24} style={{ flex: "1 1 auto", minHeight: 300 }} />
         </div>
       </div>
@@ -888,7 +975,7 @@ function NeonTemplate(ctx: TemplateProps) {
           )}
         </div>
         <div
-          ref={boxRef}
+          ref={boxRef} data-block-container=""
           style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, isCover ? "flex-end" : "center"), paddingTop: 36, paddingBottom: 24 }}
         >
           <div
@@ -915,7 +1002,7 @@ function NeonTemplate(ctx: TemplateProps) {
                 color: colors.fg,
               }}
             />
-            <Body ctx={ctx} size={42} color={colors.muted} marker="outline" />
+            <Body ctx={ctx} size={42} color={colors.muted} marker="outline" radius={24} />
             <InlineImage
               ctx={ctx}
               radius={24}
@@ -964,7 +1051,7 @@ function NotasTemplate(ctx: TemplateProps) {
         </span>
       </div>
       <p style={{ margin: "24px 0 0", textAlign: "center", fontFamily: "var(--font-inter)", fontSize: 25, color: colors.muted }}>{NOTES_DATE.format(new Date())}</p>
-      <div ref={boxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, "flex-start"), paddingTop: 44 }}>
+      <div ref={boxRef} data-block-container="" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, "flex-start"), paddingTop: 44 }}>
         <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: g(30), textAlign: ctx.align, height: inlineImage ? "100%" : undefined }}>
           <Field
             ctx={ctx}
@@ -972,7 +1059,7 @@ function NotasTemplate(ctx: TemplateProps) {
             placeholder="Escreva o título"
             style={{ fontSize: ft(isCover ? 88 : 70), fontWeight: 700, lineHeight: tl(1.14), letterSpacing: tt("-0.015em"), whiteSpace: "pre-line" }}
           />
-          <Body ctx={ctx} size={44} color={colors.fg} marker="check" lineHeight={1.45} />
+          <Body ctx={ctx} size={44} color={colors.fg} marker="check" lineHeight={1.45} radius={22} />
           <InlineImage ctx={ctx} radius={22} style={{ flex: "1 1 auto", minHeight: 300 }} />
         </div>
       </div>
@@ -1022,7 +1109,7 @@ function RevistaTemplate(ctx: TemplateProps) {
           )}
         </span>
       </div>
-      <div ref={boxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, isCover ? "flex-end" : "center"), paddingTop: 30, paddingBottom: 20 }}>
+      <div ref={boxRef} data-block-container="" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: justify(slide, isCover ? "flex-end" : "center"), paddingTop: 30, paddingBottom: 20 }}>
         <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: g(34), textAlign: ctx.align, height: inlineImage ? "100%" : undefined }}>
           <Field
             ctx={ctx}
@@ -1040,12 +1127,12 @@ function RevistaTemplate(ctx: TemplateProps) {
             }}
           />
           <span aria-hidden style={{ display: "block", width: 180, height: 3, background: colors.fg, alignSelf: ctx.flex }} />
-          <Body ctx={ctx} size={40} color={colors.muted} lineHeight={1.5} marker="numeral" />
+          <Body ctx={ctx} size={40} color={colors.muted} lineHeight={1.5} marker="numeral" radius={6} />
           <InlineImage ctx={ctx} radius={6} style={{ flex: "1 1 auto", minHeight: 220 }} />
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 40 }}>
-        <span style={small}>{design.showProfile && identity.name ? `Por ${identity.name}` : ""}</span>
+        {design.showProfile && identity.name ? <Identity ctx={ctx} as="span" style={small}>{`Por ${identity.name}`}</Identity> : <span style={small} />}
         {design.showSwipe && isCover && index < total - 1 && <SwipeHint color={colors.fg} size={26} />}
       </div>
     </div>
@@ -1067,11 +1154,11 @@ function PosterTemplate(ctx: TemplateProps) {
         ) : <span />}
         {design.showCounter && <Counter index={index} total={total} color={colors.fg} size={28} />}
       </div>
-      <div ref={boxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden", margin: "44px 40px", display: "flex", flexDirection: "column", justifyContent: justify(slide, "center") }}>
+      <div ref={boxRef} data-block-container="" style={{ flex: 1, minHeight: 0, overflow: "hidden", margin: "44px 40px", display: "flex", flexDirection: "column", justifyContent: justify(slide, "center") }}>
         <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: g(38), height: inlineImage ? "100%" : undefined }}>
           <Field ctx={ctx} field="title" as="h2" placeholder="Escreva o título" style={{ fontSize: ft(isCover ? 122 : 90), fontWeight: weight, lineHeight: tl(0.98), letterSpacing: tt("-0.04em"), textTransform: "uppercase", whiteSpace: "pre-line", textWrap: "balance" }} />
           <span aria-hidden style={{ width: 92, height: 12, background: design.accent, alignSelf: ctx.flex }} />
-          <Body ctx={ctx} size={42} color={colors.fg} lineHeight={1.38} />
+          <Body ctx={ctx} size={42} color={colors.fg} lineHeight={1.38} radius={0} />
           <InlineImage ctx={ctx} radius={0} style={{ flex: "1 1 auto", minHeight: 250 }} />
         </div>
       </div>
@@ -1101,10 +1188,10 @@ function CadernoTemplate(ctx: TemplateProps) {
         ) : <span />}
         {design.showCounter && <Counter index={index} total={total} color={colors.muted} size={28} />}
       </div>
-      <div ref={boxRef} style={{ position: "relative", flex: 1, minHeight: 0, overflow: "hidden", paddingTop: 62, paddingBottom: 36, display: "flex", flexDirection: "column", justifyContent: justify(slide, "flex-start") }}>
+      <div ref={boxRef} data-block-container="" style={{ position: "relative", flex: 1, minHeight: 0, overflow: "hidden", paddingTop: 62, paddingBottom: 36, display: "flex", flexDirection: "column", justifyContent: justify(slide, "flex-start") }}>
         <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: g(40), height: inlineImage ? "100%" : undefined }}>
           <Field ctx={ctx} field="title" as="h2" placeholder="Escreva o título" style={{ fontSize: ft(isCover ? 94 : 76), fontWeight: weight, lineHeight: tl(1.12), letterSpacing: tt("-0.025em"), whiteSpace: "pre-line" }} />
-          <Body ctx={ctx} size={44} color={colors.fg} lineHeight={1.45} marker="check" />
+          <Body ctx={ctx} size={44} color={colors.fg} lineHeight={1.45} marker="check" radius={6} />
           <InlineImage ctx={ctx} radius={6} style={{ flex: "1 1 auto", minHeight: 260, boxShadow: "0 8px 18px rgb(0 0 0 / 0.08)" }} />
         </div>
       </div>

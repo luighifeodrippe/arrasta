@@ -39,7 +39,7 @@ export const api = {
     files.forEach((f) => form.append("files", f));
     return fetch("/api/projects", { method: "POST", body: form }).then(json<Project>);
   },
-  saveProject: (project: Project) => fetch(`/api/projects/${project.id}`, put(project)).then(json<Project>),
+  saveProject: (project: Project, keepalive = false) => fetch(`/api/projects/${project.id}`, { ...put(project), keepalive }).then(json<Project>),
   deleteProject: (id: string) => fetch(`/api/projects/${id}`, { method: "DELETE" }).then(json<{ ok: boolean }>),
   formats: () => fetch("/api/formats", { cache: "no-store" }).then(json<CarouselFormat[]>),
   importFormat: (file: File) => {
@@ -73,21 +73,35 @@ export async function runAgent(
   const decoder = new TextDecoder();
   let buffer = "";
   let last: AgentEvent | null = null;
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let index = buffer.indexOf("\n");
-    while (index >= 0) {
-      const line = buffer.slice(0, index).trim();
-      buffer = buffer.slice(index + 1);
-      if (line) {
-        const event = JSON.parse(line) as AgentEvent;
-        if (event.type === "done" || event.type === "error") last = event;
-        onEvent(event);
+  const emit = (line: string) => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line) as AgentEvent;
+    if (event.type === "done" || event.type === "error") last = event;
+    onEvent(event);
+  };
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let index = buffer.indexOf("\n");
+      while (index >= 0) {
+        const line = buffer.slice(0, index).trim();
+        buffer = buffer.slice(index + 1);
+        emit(line);
+        index = buffer.indexOf("\n");
       }
-      index = buffer.indexOf("\n");
     }
+    emit(buffer + decoder.decode());
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    // Uma linha cortada ou falha de leitura também pode interromper a resposta.
+  } finally {
+    reader.releaseLock();
+  }
+  if (!last) {
+    last = { type: "error", message: "A conexão com o ChatGPT caiu antes do fim. Tente de novo." };
+    onEvent(last);
   }
   return last;
 }

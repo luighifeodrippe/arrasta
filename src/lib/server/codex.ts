@@ -147,7 +147,7 @@ interface RunOptions {
   effort?: Effort;
   /** Deixa o ChatGPT abrir páginas da web (quando o site não entregou o texto). */
   webSearch?: boolean;
-  /** Análises de amostras não precisam executar comandos. */
+  /** Redação e análise de imagens não precisam executar comandos. */
   disableShell?: boolean;
   signal?: AbortSignal;
   onEvent?: (event: AgentEvent) => void;
@@ -162,7 +162,7 @@ interface ExecItem {
 }
 
 /** Roda uma tarefa no ChatGPT e devolve o JSON no formato do schema pedido. */
-export async function runCodex<T>({ prompt, schema, images = [], effort, webSearch, disableShell, signal, onEvent, onUsage }: RunOptions): Promise<T> {
+export async function runCodex<T>({ prompt, schema, images = [], effort, webSearch, disableShell = true, signal, onEvent, onUsage }: RunOptions): Promise<T> {
   const settings = await getSettings();
   const { home, args: homeOverrides } = await homeArgs();
   await requireChatGPTAccount(home);
@@ -205,7 +205,11 @@ export async function runCodex<T>({ prompt, schema, images = [], effort, webSear
 
   const abort = () => child.kill("SIGTERM");
   signal?.addEventListener("abort", abort, { once: true });
-  const timer = setTimeout(abort, RUN_TIMEOUT_MS);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    abort();
+  }, RUN_TIMEOUT_MS);
 
   let finalText = "";
   let failure: string | null = null;
@@ -224,7 +228,7 @@ export async function runCodex<T>({ prompt, schema, images = [], effort, webSear
       const item = event.item;
       if (item.type === "agent_message" && item.text) finalText = item.text;
       if (item.type === "reasoning" && item.text) onEvent?.({ type: "thought", text: cleanThought(item.text) });
-      if (item.type === "error" && item.message) onEvent?.({ type: "status", text: item.message });
+      if (item.type === "error" && item.message) onEvent?.({ type: "status", text: friendly(item.message) });
     } else if (event.type === "turn.completed" && typeof event.usage?.input_tokens === "number" && typeof event.usage.output_tokens === "number") {
       onUsage?.({ inputTokens: event.usage.input_tokens, cachedInputTokens: event.usage.cached_input_tokens ?? null, outputTokens: event.usage.output_tokens });
     } else if (event.type === "turn.failed") {
@@ -260,6 +264,7 @@ export async function runCodex<T>({ prompt, schema, images = [], effort, webSear
   void fs.rm(work, { recursive: true, force: true });
 
   if (signal?.aborted) throw new CodexError("Cancelado.");
+  if (timedOut) throw new CodexError("O ChatGPT demorou demais e eu parei. Tente de novo ou escolha o ritmo Rápido.");
   if (failure || code !== 0 || !finalText) {
     const detail = failure ?? lastLine(stderr) ?? `O Codex saiu com código ${code}.`;
     const needsLogin = /401|unauthori[sz]ed|not logged in|log ?in|refresh token|sign in/i.test(detail);
@@ -281,6 +286,12 @@ function friendly(detail: string): string {
   }
   if (/model.*(not|isn't).*(supported|available|found)/i.test(detail)) {
     return "Esse modelo não está disponível na sua conta. Escolha outro nas configurações.";
+  }
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|network|fetch failed/i.test(detail)) {
+    return "A conexão com o ChatGPT caiu. Confira sua internet e tente de novo.";
+  }
+  if (/403|forbidden|not allowed|access/i.test(detail)) {
+    return "Sua conta não tem acesso ao Codex. Entre com uma conta do ChatGPT com acesso ao Codex e tente de novo.";
   }
   return detail.length > 280 ? `${detail.slice(0, 277)}…` : detail;
 }

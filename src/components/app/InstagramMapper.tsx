@@ -6,7 +6,7 @@ import { api } from "@/lib/client/api";
 import { useApp } from "@/lib/client/app-store";
 import { instagramHandle } from "@/lib/client/instagram-mapping";
 import type { InstagramImportResult } from "@/lib/types";
-import { Button } from "../ui/button";
+import { Button, type ButtonProps } from "../ui/button";
 import { Label } from "../ui/field";
 
 type Evidence = { analyzedAt?: string | null; sampleCount?: number; imageCount?: number };
@@ -17,7 +17,7 @@ export function MappingEvidence({ sampleCount = 0, imageCount = 0, reused = fals
 
 /** Uma submissão lê o perfil e analisa a escrita. Digitar nunca dispara a IA. */
 export function InstagramMapper({
-  handle, onHandleChange, onMapped, onStart, label = "@ no Instagram", buttonLabel = "Mapear", evidence, disabled = false, canSubmit = true,
+  handle, onHandleChange, onMapped, onStart, label = "@ no Instagram", buttonLabel = "Mapear", buttonVariant = "glass", evidence, disabled = false, canSubmit = true,
 }: {
   handle: string;
   onHandleChange: (handle: string) => void;
@@ -25,6 +25,7 @@ export function InstagramMapper({
   onStart?: () => void;
   label?: string;
   buttonLabel?: string;
+  buttonVariant?: ButtonProps["variant"];
   evidence?: Evidence;
   disabled?: boolean;
   canSubmit?: boolean;
@@ -89,7 +90,7 @@ export function InstagramMapper({
           <span className="text-[14px] text-ink-3" aria-hidden>@</span>
           <input id={id} value={handle} onChange={(event) => { onHandleChange(event.target.value.replace(/^@+/, "").replace(/\s/g, "")); setError(""); setResult(null); pending.current = null; }} disabled={busy || disabled} autoCapitalize="none" autoComplete="off" spellCheck={false} maxLength={30} placeholder="seuperfil" aria-invalid={Boolean(error)} aria-describedby={`${id}-status`} className="h-full min-w-0 flex-1 bg-transparent px-1 text-[14px] outline-none placeholder:text-ink-3 disabled:opacity-50" />
         </div>
-        <Button type="submit" size="sm" disabled={busy || disabled || !canSubmit} className="h-10">{busy ? "Mapeando…" : mapped ? "Atualizar" : buttonLabel}</Button>
+        <Button type="submit" variant={buttonVariant} size="sm" disabled={busy || disabled || !canSubmit} className="h-10">{busy ? "Mapeando…" : mapped ? "Atualizar" : buttonLabel}</Button>
       </form>
       <p className="mt-2 text-[12px] leading-relaxed text-ink-3">Até 6 legendas e 4 imagens · uma análise por mapeamento. Guias salvos são reutilizados.</p>
       <div id={`${id}-status`} role={error ? "alert" : "status"} aria-live="polite" className={`mt-2 text-[12px] leading-relaxed ${error ? "text-red-300" : "text-ink-3"}`}>

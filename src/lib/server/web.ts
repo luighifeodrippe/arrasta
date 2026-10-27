@@ -1,5 +1,6 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
+import { DestinationError, fetchPublicUrl, readLimitedBody } from "./public-network.ts";
 
 /** Leitura de posts do X e de páginas da web, para virar carrossel. */
 const BROWSER_UA =
@@ -130,17 +131,27 @@ function htmlToText(html: string): string {
 
 export async function fetchArticle(url: URL): Promise<LinkContent> {
   let html: string;
+  let pageUrl = url;
   try {
-    const response = await fetch(url, {
+    const result = await fetchPublicUrl(url, {
       headers: { "User-Agent": BROWSER_UA, "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8", Accept: "text/html,application/xhtml+xml" },
-      redirect: "follow",
       signal: AbortSignal.timeout(20000),
     });
-    if (!response.ok) throw new LinkError(`O site respondeu ${response.status}. Ele pode bloquear leitura automática; cole o texto no modo Ideia.`);
+    const { response } = result;
+    pageUrl = result.url;
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new LinkError(`O site respondeu ${response.status}. Ele pode bloquear leitura automática; cole o texto na aba Texto.`);
+    }
     const type = response.headers.get("content-type") ?? "";
-    if (!type.includes("html")) throw new LinkError("Esse link não é uma página de texto. Cole o link de um artigo, post ou página.");
-    html = (await response.text()).slice(0, 3_000_000);
+    if (!type.includes("html")) {
+      await response.body?.cancel();
+      throw new LinkError("Esse link não é uma página de texto. Cole o link de um artigo, post ou página.");
+    }
+    const data = await readLimitedBody(response, 5 * 1024 * 1024, new LinkError("A página excedeu o limite de leitura. Cole o texto na aba Texto."));
+    html = data.toString("utf8").slice(0, 3_000_000);
   } catch (error) {
+    if (error instanceof DestinationError) throw new LinkError(error.message);
     if (error instanceof LinkError) throw error;
     throw new LinkError("Não consegui abrir esse site. Confira o link e a sua internet.");
   }
@@ -151,7 +162,7 @@ export async function fetchArticle(url: URL): Promise<LinkContent> {
   const absolute = (value: string | null) => {
     if (!value) return null;
     try {
-      return new URL(value, url).toString();
+      return new URL(value, pageUrl).toString();
     } catch {
       return null;
     }
@@ -169,7 +180,7 @@ export async function fetchArticle(url: URL): Promise<LinkContent> {
   let text = article?.content ? htmlToText(article.content) : "";
   const description = meta("og:description") ?? meta("description");
   if (text.length < 200 && description) text = [text, description].filter(Boolean).join("\n\n");
-  if (text.length < 80) throw new LinkError("Não encontrei texto suficiente nessa página. Cole o conteúdo no modo Ideia.");
+  if (text.length < 80) throw new LinkError("Não encontrei texto suficiente nessa página. Cole o conteúdo na aba Texto.");
 
   return {
     url: url.toString(),
@@ -288,7 +299,7 @@ export async function fetchYouTube(url: URL): Promise<LinkContent> {
   }
 
   if (!transcript && description.length < 300) {
-    throw new LinkError("Esse vídeo não tem legenda, e é por ela que o Arrasta entende o vídeo. Tente outro vídeo ou cole o roteiro no modo Ideia.");
+    throw new LinkError("Esse vídeo não tem legenda, e é por ela que o Arrasta entende o vídeo. Tente outro vídeo ou cole o roteiro na aba Texto.");
   }
   const parts = [
     `Título: ${title}`,

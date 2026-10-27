@@ -1,5 +1,8 @@
 "use client";
 
+import { useStageView } from "./stage-view";
+import { useModKey } from "@/lib/client/shortcut";
+
 import { ArrowLeft01Icon, ArrowLeft02Icon, ArrowRight01Icon, BulbIcon, ClosedCaptionIcon, Download04Icon, FileTextIcon, Image02Icon, PaintBoardIcon, PanelLeftCloseIcon, Redo02Icon, Settings02Icon, TextIcon, Undo02Icon, ViewIcon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { ScrollArea } from "radix-ui";
@@ -163,7 +166,7 @@ function Workspace() {
     { value: "imagens", label: "Imagens", icon: Image02Icon },
     { value: "legenda", label: "Legenda", icon: ClosedCaptionIcon },
     ...(project.source
-      ? [{ value: "original" as const, label: project.source.kind === "idea" ? "Ideia" : "Original", icon: project.source.kind === "idea" ? BulbIcon : FileTextIcon }]
+      ? [{ value: "original" as const, label: project.source.kind === "idea" ? "Texto" : "Original", icon: project.source.kind === "idea" ? BulbIcon : FileTextIcon }]
       : []),
   ];
   const current = tabs.find((t) => t.value === tab) ?? tabs[1];
@@ -244,7 +247,7 @@ function Workspace() {
         )}
 
         <main className="relative h-[60dvh] min-w-0 shrink-0 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
-          <Stage />
+          <Stage onDownload={(ids) => window.dispatchEvent(new CustomEvent("arrasta:download-selection", { detail: ids }))} />
           <AgentBar />
           {desktop && (
             // Puxador na borda do painel, como no Canva: abre e fecha sem precisar adivinhar.
@@ -278,6 +281,7 @@ function Workspace() {
 }
 
 function TopBar({ onPreview }: { onPreview: () => void }) {
+  const modKey = useModKey();
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
   const setTitle = useEditor((s) => s.setTitle);
@@ -287,6 +291,15 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
   const canRedo = useEditor((s) => s.future.length > 0);
   const [exporting, setExporting] = useState<{ indices: number[]; project: Project } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [initialSelection, setInitialSelection] = useState<string[] | undefined>();
+  useEffect(() => {
+    const open = (event: Event) => {
+      setInitialSelection((event as CustomEvent<string[]>).detail);
+      setExportOpen(true);
+    };
+    window.addEventListener("arrasta:download-selection", open);
+    return () => window.removeEventListener("arrasta:download-selection", open);
+  }, []);
   const [postGuide, setPostGuide] = useState(false);
   const [lastExport, setLastExport] = useState({ count: 0, caption: "" });
   const toastId = useRef<string | number | null>(null);
@@ -343,12 +356,12 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
         aria-label="Nome do carrossel"
       />
       <div className="ml-1 hidden items-center gap-0.5 sm:flex">
-        <Tip label="Desfazer (⌘Z)">
+        <Tip label={`Desfazer (${modKey}Z)`}>
           <Button size="icon-sm" variant="ghost" onClick={undo} disabled={!canUndo} aria-label="Desfazer">
             <Icon icon={Undo02Icon} />
           </Button>
         </Tip>
-        <Tip label="Refazer (⇧⌘Z)">
+        <Tip label={`Refazer (${modKey === "⌘" ? "⇧⌘Z" : "Ctrl+Shift+Z"})`}>
           <Button size="icon-sm" variant="ghost" onClick={redo} disabled={!canRedo} aria-label="Refazer">
             <Icon icon={Redo02Icon} />
           </Button>
@@ -362,32 +375,66 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <ProfileButton compact />
         <ChatGPTAccount compact />
-        <Tip label="Visualizar"><Button variant="ghost" size="icon-sm" className="size-[32px]" aria-label="Visualizar" onClick={onPreview} disabled={!hasSlides}>
+        <Tip label="Prévia"><Button variant="ghost" size="icon-sm" className="h-[32px] w-[32px] sm:w-auto sm:px-3 sm:text-[13px]" aria-label="Prévia" onClick={onPreview} disabled={!hasSlides}>
           <Icon icon={ViewIcon} />
+          <span className="hidden sm:inline">Prévia</span>
         </Button></Tip>
-        <Tip label="Baixar cards"><Button data-tour="export" variant="primary" size="icon-sm" className="size-[32px]" aria-label="Baixar cards" onClick={() => setExportOpen(true)} disabled={!hasSlides || exporting !== null}>
+        <Tip label="Baixar"><Button data-tour="export" variant="primary" size="icon-sm" className="h-[32px] w-[32px] sm:w-auto sm:px-3 sm:text-[13px]" aria-label="Baixar" onClick={() => { setInitialSelection(undefined); setExportOpen(true); }} disabled={!hasSlides || exporting !== null}>
           <Icon icon={Download04Icon} />
+          <span className="hidden sm:inline">Baixar</span>
         </Button></Tip>
       </div>
-      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} project={project} selectedId={selectedId} onExport={startExport} />
+      <ExportDialog initialSelection={initialSelection} open={exportOpen} onOpenChange={setExportOpen} project={project} selectedId={selectedId} onExport={startExport} />
       {exporting && <ExportStage project={exporting.project} indices={exporting.indices} onReady={onReady} />}
       <PostGuide open={postGuide} onOpenChange={setPostGuide} count={lastExport.count} caption={lastExport.caption} />
     </header>
   );
 }
 
-/** Salva sozinho, meio segundo depois da última mudança. */
+/** Salva após 600 ms; ao sair, envia imediatamente a edição pendente. */
 function useAutosave() {
-  const revision = useEditor((s) => s.revision);
   useEffect(() => {
-    if (revision === 0) return;
-    const timer = setTimeout(() => {
-      const project = useEditor.getState().project;
-      if (!project) return;
-      api.saveProject(project).catch(() => toast.error("Não consegui salvar. Confira se o Arrasta ainda está rodando."));
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [revision]);
+    let pending: Project | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let leaving: Project | null = null;
+    const flush = (keepalive = false) => {
+      clearTimeout(timer);
+      if (!pending) return;
+      const project = pending;
+      if (keepalive && leaving === project) return;
+      if (keepalive) leaving = project;
+      void (async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            await api.saveProject(project, keepalive);
+            if (pending === project) pending = null;
+            if (leaving === project) leaving = null;
+            return;
+          } catch {
+            // Não repete uma edição antiga por cima de uma mais recente.
+            if (pending !== project) return;
+            if (attempt === 1) toast.error("Não consegui salvar. Confira se o Arrasta ainda está rodando.");
+          }
+        }
+        if (leaving === project) leaving = null;
+      })();
+    };
+    // A assinatura recebe até a edição feita imediatamente antes de desmontar.
+    const unsubscribe = useEditor.subscribe((state, previous) => {
+      if (state.project?.id !== previous.project?.id) flush();
+      if (!state.project || state.revision === 0 || state.revision === previous.revision) return;
+      pending = state.project;
+      clearTimeout(timer);
+      timer = setTimeout(() => flush(), 600);
+    });
+    const leave = () => flush(true);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("pagehide", leave);
+      leave();
+    };
+  }, []);
 }
 
 function useShortcuts() {
@@ -396,6 +443,23 @@ function useShortcuts() {
       const target = e.target as HTMLElement;
       const typing = target.closest("input, textarea, [contenteditable=true]");
       const mod = e.metaKey || e.ctrlKey;
+      if (e.defaultPrevented || target.closest('[role="dialog"]')) return;
+      if (!typing) {
+        if (e.key === "Escape") useEditor.getState().clearSelection();
+        if (mod && e.key.toLowerCase() === "a") {
+          e.preventDefault();
+          useEditor.getState().setSelection(useEditor.getState().project?.slides.map((slide) => slide.id) ?? []);
+          return;
+        }
+        if (mod && ["=", "+", "-", "0"].includes(e.key)) {
+          e.preventDefault();
+          const view = useStageView.getState();
+          if (e.key === "0") view.fit();
+          else if (e.key === "-") view.zoomOut();
+          else view.zoomIn();
+          return;
+        }
+      }
       if (mod && e.key.toLowerCase() === "z" && !typing) {
         e.preventDefault();
         if (e.shiftKey) useEditor.getState().redo();

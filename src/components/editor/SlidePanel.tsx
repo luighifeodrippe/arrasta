@@ -1,5 +1,7 @@
 "use client";
 
+import { useModKey } from "@/lib/client/shortcut";
+
 import { AiMagicIcon, HighlighterIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { toast } from "sonner";
@@ -134,6 +136,7 @@ function FieldHeader({ htmlFor, label, onEmphasis, rewrite }: { htmlFor: string;
 }
 
 export function SlidePanel() {
+  const modKey = useModKey();
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
   const updateSlide = useEditor((s) => s.updateSlide);
@@ -206,7 +209,7 @@ export function SlidePanel() {
             registerToggle={(t) => (toggles.current.body = t)}
           />
           <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">
-            Selecione palavras e use ⌘B para destacar. Em listas, um item por linha. Fonte, cor, alinhamento, imagem e fundo ficam na barra em cima dos slides.
+            Selecione palavras e use {modKey}B para destacar. Em listas, um item por linha. Fonte, cor, alinhamento, imagem e fundo ficam na barra em cima dos slides.
           </p>
         </div>
       </Section>

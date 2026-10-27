@@ -1,40 +1,52 @@
 "use client";
 
 import { create } from "zustand";
+import { clampZoom, DEFAULT_ZOOM, stepZoom } from "@/lib/client/stage-math";
 
 export type Layout = "row" | "column";
-
 const LAYOUT_KEY = "arrasta:stage-layout";
-export const ZOOM_LEVELS = 3;
+const GUIDES_KEY = "arrasta:stage-guides";
 
 interface StageViewState {
-  /** Tamanho dos cards no palco: 0 (menor) a 2 (maior). */
   zoom: number;
-  /** Lado a lado (como no feed) ou em coluna (como no Canva). */
   layout: Layout;
+  guides: boolean;
+  cardWidth: number;
+  fitRequest: number;
   setZoom: (zoom: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fit: () => void;
   setLayout: (layout: Layout) => void;
+  toggleGuides: () => void;
 }
 
 export const useStageView = create<StageViewState>((set) => ({
-  zoom: 1,
+  zoom: DEFAULT_ZOOM,
   layout: "row",
-  setZoom: (zoom) => set({ zoom: Math.max(0, Math.min(ZOOM_LEVELS - 1, zoom)) }),
+  guides: false,
+  cardWidth: 0,
+  fitRequest: 0,
+  setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
+  zoomIn: () => set((s) => ({ zoom: stepZoom(s.zoom, 1) })),
+  zoomOut: () => set((s) => ({ zoom: stepZoom(s.zoom, -1) })),
+  fit: () => set((s) => ({ zoom: DEFAULT_ZOOM, fitRequest: s.fitRequest + 1 })),
   setLayout: (layout) => {
     set({ layout });
-    try {
-      localStorage.setItem(LAYOUT_KEY, layout);
-    } catch {
-      // Sem armazenamento: vale só nesta visita.
-    }
+    try { localStorage.setItem(LAYOUT_KEY, layout); } catch { /* Só nesta visita. */ }
   },
+  toggleGuides: () => set((s) => {
+    const guides = !s.guides;
+    try { localStorage.setItem(GUIDES_KEY, guides ? "1" : "0"); } catch { /* Só nesta visita. */ }
+    return { guides };
+  }),
 }));
 
-/** A escolha de layout fica salva neste navegador. */
 export function restoreLayout() {
   try {
-    if (localStorage.getItem(LAYOUT_KEY) === "column") useStageView.setState({ layout: "column" });
-  } catch {
-    // Sem armazenamento: começa lado a lado.
-  }
+    useStageView.setState({
+      layout: localStorage.getItem(LAYOUT_KEY) === "column" ? "column" : "row",
+      guides: localStorage.getItem(GUIDES_KEY) === "1",
+    });
+  } catch { /* Sem armazenamento: usa os padrões. */ }
 }

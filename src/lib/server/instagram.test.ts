@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { publicNetwork } from "./public-network.ts";
 import { downloadImage, fetchProfile, InstagramError, parseHandle, parseShortcode, selectProfileCaptions } from "./instagram.ts";
 
 test("aceita os formatos de link de post", () => {
@@ -11,17 +12,17 @@ test("aceita os formatos de link de post", () => {
 });
 
 test("recusa o que não é post", () => {
-  assert.equal(parseShortcode("https://www.instagram.com/pelainteligencia/"), null);
+  assert.equal(parseShortcode("https://www.instagram.com/perfil.exemplo/"), null);
   assert.equal(parseShortcode("https://example.com/p/abc"), null);
   assert.equal(parseShortcode(""), null);
 });
 
 test("lê o @ de várias formas", () => {
-  assert.equal(parseHandle("@pelainteligencia"), "pelainteligencia");
-  assert.equal(parseHandle("https://www.instagram.com/PelaInteligencia/"), "pelainteligencia");
+  assert.equal(parseHandle("@perfil.exemplo"), "perfil.exemplo");
+  assert.equal(parseHandle("https://www.instagram.com/Perfil.Exemplo/"), "perfil.exemplo");
   assert.equal(parseHandle("mlabs.br"), "mlabs.br");
   assert.equal(parseHandle("nome com espaço"), null);
-  assert.equal(parseHandle("https://notinstagram.com/pelainteligencia/"), null);
+  assert.equal(parseHandle("https://notinstagram.com/perfil.exemplo/"), null);
   assert.equal(parseHandle("https://www.instagram.com/reels/"), null);
 });
 
@@ -182,24 +183,64 @@ test("interrompe HTML de perfil acima de 2 MiB e mantém a opção manual", asyn
 });
 
 test("download de imagem respeita o limite de bytes informado", async (t) => {
+  t.mock.method(publicNetwork, "resolve", async () => [{ address: "8.8.8.8", family: 4 }]);
   let canceled = false;
   const body = new ReadableStream<Uint8Array>({
     start(controller) { controller.enqueue(new Uint8Array(5)); },
     cancel() { canceled = true; },
   });
-  t.mock.method(globalThis, "fetch", async () => new Response(body, { headers: { "Content-Type": "image/png" } }));
+  t.mock.method(publicNetwork, "request", async () => new Response(body, { headers: { "Content-Type": "image/png" } }));
   await assert.rejects(downloadImage("https://images.example/card.png", undefined, 4), /limite de download/);
   assert.equal(canceled, true);
 });
 
 test("download permite imagem dentro do limite e usa o User-Agent exigido", async (t) => {
-  t.mock.method(globalThis, "fetch", async (_url: string | URL | Request, init?: RequestInit) => {
+  t.mock.method(publicNetwork, "resolve", async () => [{ address: "8.8.8.8", family: 4 }]);
+  t.mock.method(publicNetwork, "request", async (...[_url, _addresses, init]: Parameters<typeof publicNetwork.request>) => {
     assert.equal(new Headers(init?.headers).get("user-agent"), "OpenAI File Downloader, XaiImageApiFetch/1.0");
     return new Response(new Uint8Array([1, 2, 3, 4]), { headers: { "Content-Type": "image/png" } });
   });
   const image = await downloadImage("https://images.example/card.png", undefined, 4);
   assert.deepEqual([...image.data], [1, 2, 3, 4]);
   assert.equal(image.type, "image/png");
+});
+
+test("download de imagem recusa destino privado antes da conexão", async (t) => {
+  t.mock.method(publicNetwork, "request", async () => { assert.fail("não deve abrir conexão"); });
+  await assert.rejects(downloadImage("http://[::ffff:127.0.0.1]/card.png"), (error: unknown) => {
+    assert.ok(error instanceof InstagramError);
+    assert.equal(error.message, "Esse link aponta para um endereço que o Arrasta não abre.");
+    return true;
+  });
+});
+
+test("download aceita exatamente 15 MiB e impõe o teto mesmo com limite maior", async (t) => {
+  t.mock.method(publicNetwork, "resolve", async () => [{ address: "8.8.8.8", family: 4 }]);
+  const maxBytes = 15 * 1024 * 1024;
+  const mock = t.mock.method(publicNetwork, "request", async () => new Response(new Uint8Array(maxBytes), { headers: { "content-type": "image/png" } }));
+  assert.equal((await downloadImage("https://images.example/card.png")).data.byteLength, maxBytes);
+  mock.mock.restore();
+  let canceled = false;
+  let pulls = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) { pulls += 1; controller.enqueue(new Uint8Array(1024 * 1024)); },
+    cancel() { canceled = true; },
+  }, { highWaterMark: 0 });
+  t.mock.method(publicNetwork, "request", async () => new Response(body, { headers: { "content-type": "image/png" } }));
+  await assert.rejects(downloadImage("https://images.example/card.png", undefined, maxBytes * 2), /limite de download/);
+  assert.equal(canceled, true);
+  assert.equal(pulls, 16);
+});
+
+test("imagem redirecionada não pode acessar DNS privado", async (t) => {
+  let requests = 0;
+  t.mock.method(publicNetwork, "resolve", async (hostname: string) => [{ address: hostname === "images.example" ? "8.8.8.8" : "10.0.0.1", family: 4 }]);
+  t.mock.method(publicNetwork, "request", async () => {
+    requests += 1;
+    return new Response(null, { status: 302, headers: { Location: "https://private.example/card.png" } });
+  });
+  await assert.rejects(downloadImage("https://images.example/card.png"), /Esse link aponta/);
+  assert.equal(requests, 1);
 });
 
 test("resposta bloqueada oferece preenchimento manual", async (t) => {

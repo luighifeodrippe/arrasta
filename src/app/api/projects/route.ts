@@ -23,10 +23,10 @@ export async function POST(request: Request) {
     if (body.kind === "idea") {
       const brief = (body.brief ?? "").trim();
       if (!brief) return Response.json({ error: "Escreva sobre o que é o carrossel." }, { status: 400 });
-      const project = newProject({ title: brief.slice(0, 60), source: { ...emptySource("idea"), brief, formatId } });
+      const project = await newProject({ title: brief.slice(0, 60), source: { ...emptySource("idea"), brief, formatId } });
       return Response.json(await saveProject(project));
     }
-    const project = newProject({
+    const project = await newProject({
       slides: [makeSlide({ kind: "cover", title: "Escreva aqui o **gancho** do seu carrossel", body: "Arraste para o lado →" })],
     });
     return Response.json(await saveProject(project));
@@ -57,7 +57,7 @@ async function fromLink(input: string, formatId: string | null): Promise<Project
 
   const content =
     link.kind === "x" ? await fetchTweet(link.url) : link.kind === "youtube" ? await fetchYouTube(link.url) : await fetchArticle(link.url);
-  const project = newProject({
+  const project = await newProject({
     title:
       link.kind === "youtube"
         ? (content.title ?? "Vídeo do YouTube").slice(0, 80)
@@ -91,7 +91,7 @@ async function fromLink(input: string, formatId: string | null): Promise<Project
 async function fromInstagram(url: string): Promise<Project> {
   const post = await fetchPost(url);
   if (!post.media.length) throw new InstagramError("Esse post não tem imagens que eu consiga ler.");
-  const project = newProject({ title: post.author ? `Recriação de @${post.author.username}` : "Recriação" });
+  const project = await newProject({ title: post.author ? `Recriação de @${post.author.username}` : "Recriação" });
 
   const slides = await Promise.all(
     post.media.slice(0, MAX_SLIDES).map(async (media, index) => {
@@ -117,11 +117,18 @@ async function fromInstagram(url: string): Promise<Project> {
 }
 
 async function fromUpload(form: FormData): Promise<Project> {
-  const files = form.getAll("files").filter((f): f is File => f instanceof File && f.type.startsWith("image/"));
+  const files = form.getAll("files").filter((f): f is File => f instanceof File);
   if (!files.length) throw new UploadError("Envie as imagens dos slides (JPG, PNG ou WebP).");
-  const project = newProject({ title: "Recriação de prints" });
+  if (files.length > MAX_SLIDES) throw new UploadError("Envie no máximo 20 imagens por vez.");
+  for (const file of files) {
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      throw new UploadError("Esse formato de imagem não funciona aqui. Envie JPG, PNG ou WebP (no iPhone, faça um print da foto).");
+    }
+    if (file.size > 15 * 1024 * 1024) throw new UploadError("Imagem maior que 15 MB.");
+  }
+  const project = await newProject({ title: "Recriação de prints" });
   const slides = [];
-  for (const [index, file] of files.slice(0, MAX_SLIDES).entries()) {
+  for (const [index, file] of files.entries()) {
     const src = await saveAsset(project.id, `src-${index + 1}.${extFor(file.type)}`, Buffer.from(await file.arrayBuffer()));
     slides.push({ src, text: "", isVideo: false });
   }

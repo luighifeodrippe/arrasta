@@ -1,11 +1,11 @@
 "use client";
 
 import { Tick02Icon } from "@hugeicons/core-free-icons";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { useApp } from "@/lib/client/app-store";
-import { instagramHandle, mergeInstagramProfile } from "@/lib/client/instagram-mapping";
+import { mergeInstagramProfile } from "@/lib/client/instagram-mapping";
 import { InstagramMapper } from "../app/InstagramMapper";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
@@ -33,6 +33,7 @@ function writeFlag(key: string) {
 
 /** Guia de primeira vez: conexão, perfil, gostos e primeira criação. */
 export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onPaste: () => void }) {
+  const reducedMotion = useReducedMotion();
   const auth = useApp((s) => s.auth);
   const profile = useApp((s) => s.profile);
   const setProfile = useApp((s) => s.setProfile);
@@ -58,14 +59,14 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
     {
       id: "chatgpt",
       title: "Conecte o ChatGPT",
-      text: "Use sua própria conta, sem chave nem cobrança de API. Valem os limites do Codex na sua conta.",
+      text: "Entre com a sua conta para o ChatGPT escrever por você.",
       done: auth.connected,
     },
     {
       id: "voice",
-      title: "Mapeie seu perfil",
-      text: "Informe seu @. A IA busca seu perfil e aprende sua escrita com os conteúdos públicos disponíveis.",
-      done: Boolean(profile.voice.trim() && profile.voiceAnalysis?.analyzedAt && instagramHandle(profile.voiceAnalysis.handle) === instagramHandle(profile.handle)) || skipVoice,
+      title: "Ensine sua voz",
+      text: "Informe seu @ ou cole legendas e roteiros seus.",
+      done: Boolean(profile.voice.trim()) || skipVoice,
     },
     {
       id: "writing",
@@ -75,8 +76,8 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
     },
     {
       id: "link",
-      title: "Cole seu primeiro link",
-      text: "Um carrossel que viralizou, um vídeo do YouTube, um post do X ou um artigo.",
+      title: "Crie seu primeiro carrossel",
+      text: "Cole um texto, envie prints ou um link.",
       done: hasProjects,
     },
   ];
@@ -86,47 +87,48 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1], delay: 0.2 }}
-      className="glass mt-8 w-full max-w-[560px] rounded-[20px] p-2 text-left"
+      className="home-onboarding"
       aria-label="Primeiros passos"
     >
-      <div className="flex items-center justify-between px-3 pb-1.5 pt-2">
-        <p className="text-[13.5px] font-medium">
-          Comece em {steps.length} passos{" "}
-          <span className="font-normal text-ink-3">
-            · {doneCount} de {steps.length}
-          </span>
-        </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[15px] font-semibold">Comece em {steps.length} passos</p>
         <button
           onClick={() => {
             writeFlag(DONE_KEY);
             setDismissed(true);
           }}
-          className="rounded-[8px] px-2 py-1 text-[12.5px] text-ink-3 transition-colors hover:bg-white/[0.06] hover:text-ink"
+          className="shrink-0 rounded-md py-1 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
         >
           Pular guia
         </button>
+      </div>
+      <div className="mb-1 mt-3 flex items-center gap-3">
+        <span className="text-[13px] tabular-nums text-ink-3">{doneCount} de {steps.length} feitos</span>
+        <div className="home-guide-progress" role="progressbar" aria-label="Passos concluídos" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={doneCount}>
+          <span style={{ transform: `scaleX(${doneCount / steps.length})` }} />
+        </div>
       </div>
       <ol className="flex flex-col">
         {steps.map((step, i) => {
           const active = step.id === current;
           return (
-            <li key={step.id} className={cn("rounded-[14px] px-3 py-2.5 transition-colors", active && "bg-white/[0.045]")}>
+            <li key={step.id} className="home-guide-step">
               <div className="flex items-start gap-3">
                 <span
                   className={cn(
-                    "mt-px grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-semibold tabular-nums",
-                    step.done ? "bg-white/[0.12] text-ink" : active ? "keycap" : "border border-white/[0.12] text-ink-3",
+                    "home-guide-number",
+                    step.done ? "home-guide-done" : active ? "home-guide-current" : "home-guide-pending",
                   )}
                 >
                   {step.done ? <Icon icon={Tick02Icon} className="size-3.5" strokeWidth={3} /> : i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className={cn("text-[14px] font-medium", step.done ? "text-ink-3 line-through decoration-white/20" : "text-ink")}>
+                  <p className={cn("text-[15px] font-semibold", step.done ? "text-ink-3" : "text-ink")}>
                     {step.title}
-                    {(step.id === "voice" || step.id === "writing") && !step.done && <span className="ml-1.5 text-[12px] font-normal text-ink-3">opcional</span>}
+                    {(step.id === "voice" || step.id === "writing") && !step.done && <span className="ml-1.5 text-[13px] font-normal text-ink-3">opcional</span>}
                   </p>
                   <AnimatePresence initial={false}>
                     {active && (
@@ -134,18 +136,19 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-                        className="overflow-hidden"
+                        transition={{ duration: reducedMotion ? 0 : 0.25, ease: [0.23, 1, 0.32, 1] }}
+                        className="home-guide-details"
                       >
-                        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{step.text}</p>
-                        <div className="mt-3 flex flex-wrap items-center gap-2 pb-0.5">
+                        <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{step.text}</p>
+                        <div className="mt-[14px] flex flex-wrap items-center gap-2">
                           {step.id === "chatgpt" && (
-                            <Button variant="primary" size="sm" onClick={() => setLoginOpen(true)}>
+                            <Button variant="lit" size="sm" onClick={() => setLoginOpen(true)}>
                               Entrar com ChatGPT
                             </Button>
                           )}
                           {step.id === "voice" && <div className="w-full space-y-2">
                             <InstagramMapper
+                              buttonVariant="lit"
                               handle={handle ?? profile.handle}
                               onHandleChange={setHandle}
                               onStart={() => { mappingBaseline.current = useApp.getState().profile; }}
@@ -158,12 +161,15 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                                 setProfile(latest === currentProfile ? saved : latest ? mergeInstagramProfile(latest, result, mappingBaseline.current) : saved);
                               }}
                             />
-                            <Button size="sm" variant="ghost" onClick={() => { writeFlag(SKIP_VOICE_KEY); setSkipVoice(true); }}>Agora não</Button>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button size="sm" variant="glass" className="home-pill h-9 rounded-full px-4 text-[14px]" onClick={() => openSettings("voz")}>Colar meus textos</Button>
+                              <Button size="sm" variant="ghost" className="h-9" onClick={() => { writeFlag(SKIP_VOICE_KEY); setSkipVoice(true); }}>Agora não</Button>
+                            </div>
                           </div>}
                           {step.id === "writing" && (
                             <>
                               <Button
-                                variant="primary"
+                                variant="lit"
                                 size="sm"
                                 onClick={() => {
                                   openSettings("voz");
@@ -176,6 +182,7 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                className="h-9"
                                 onClick={() => {
                                   writeFlag(WRITING_KEY);
                                   setWritingSeen(true);
@@ -186,8 +193,8 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                             </>
                           )}
                           {step.id === "link" && (
-                            <Button variant="primary" size="sm" onClick={onPaste}>
-                              Colar um link
+                            <Button variant="lit" size="sm" onClick={onPaste}>
+                              Começar
                             </Button>
                           )}
                         </div>

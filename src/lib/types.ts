@@ -28,6 +28,8 @@ export interface TextStyle {
   tracking: number | null;
 }
 
+export type BlockId = "identity" | "title" | "body" | "image";
+
 export interface Slide {
   id: string;
   kind: SlideKind;
@@ -43,6 +45,8 @@ export interface Slide {
   bodyStyle: TextStyle;
   /** Espaço entre os blocos (foto e @, título, texto, imagem), relativo ao do modelo; null segue o design. */
   gap: number | null;
+  /** Deslocamento em pixels a partir do layout automático. */
+  offsets: Partial<Record<BlockId, { x: number; y: number }>>;
 }
 
 export interface Design {

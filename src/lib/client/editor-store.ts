@@ -1,8 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { makeSlide, MAX_SLIDES, uid } from "../defaults";
-import type { ChatEntry, Design, Project, Slide, TextStyle } from "../types";
+import { makeSlide, MAX_SLIDES, uid } from "../defaults.ts";
+import type { BlockId, ChatEntry, Design, Project, Slide, TextStyle } from "../types.ts";
 
 type Field = "title" | "body";
 
@@ -11,6 +11,12 @@ type Snapshot = Pick<Project, "title" | "slides" | "design" | "caption" | "hasht
 interface EditorState {
   project: Project | null;
   selectedId: string | null;
+  selection: string[];
+  setSelection: (ids: string[]) => void;
+  toggleInSelection: (id: string) => void;
+  clearSelection: () => void;
+  duplicateSlides: (ids: string[]) => void;
+  removeSlides: (ids: string[]) => void;
   past: Snapshot[];
   future: Snapshot[];
   /** Muda a cada alteração do usuário; o salvamento automático observa esse número. */
@@ -32,6 +38,8 @@ interface EditorState {
   setDesign: (patch: Partial<Design>) => void;
   setCaption: (caption: string) => void;
   setHashtags: (hashtags: string[]) => void;
+  moveBlock: (id: string, block: BlockId, offset: { x: number; y: number } | null) => void;
+  organizeSlides: (ids: string[]) => void;
   updateSlide: (id: string, patch: Partial<Slide>, key?: string) => void;
   /** A mesma mudança em todos os slides (ex.: posição do texto no carrossel inteiro). */
   updateAllSlides: (patch: Partial<Slide>) => void;
@@ -68,6 +76,7 @@ export const useEditor = create<EditorState>((set, get) => {
     const merge = key && key === lastKey && now - lastAt < 1200;
     set({
       project: { ...project, ...next },
+      ...(next.slides ? { selection: get().selection.filter((id) => next.slides!.some((s) => s.id === id)) } : {}),
       past: merge ? past : [...past, snapshot(project)].slice(-HISTORY),
       future: [],
       revision: get().revision + 1,
@@ -79,6 +88,7 @@ export const useEditor = create<EditorState>((set, get) => {
   return {
     project: null,
     selectedId: null,
+    selection: [],
     past: [],
     future: [],
     revision: 0,
@@ -86,7 +96,7 @@ export const useEditor = create<EditorState>((set, get) => {
     lastAt: 0,
 
     load: (project) =>
-      set({ project, selectedId: project.slides[0]?.id ?? null, past: [], future: [], revision: 0, lastKey: null, lastAt: 0 }),
+      set({ project, selection: [], selectedId: project.slides[0]?.id ?? null, past: [], future: [], revision: 0, lastKey: null, lastAt: 0 }),
 
     replace: (patch, select = "first") => {
       const { project, past, selectedId } = get();
@@ -96,6 +106,7 @@ export const useEditor = create<EditorState>((set, get) => {
       const keep = select === "keep" && next.slides.some((s) => s.id === selectedId);
       set({
         project: next,
+        selection: get().selection.filter((id) => next.slides.some((s) => s.id === id)),
         past: project.slides.length ? [...past, snapshot(project)].slice(-HISTORY) : past,
         future: [],
         revision: get().revision + 1,
@@ -124,7 +135,41 @@ export const useEditor = create<EditorState>((set, get) => {
       if (!entry.before.slides.some((s) => s.id === selectedId)) set({ selectedId: entry.before.slides[0]?.id ?? null });
     },
 
-    select: (id) => set({ selectedId: id }),
+    select: (id) => set({ selectedId: id, selection: [] }),
+    setSelection: (ids) => set({ selection: [...new Set(ids)].filter((id) => get().project?.slides.some((s) => s.id === id)) }),
+    toggleInSelection: (id) => {
+      const { selection, selectedId, setSelection } = get();
+      const current = selection.length ? selection : selectedId ? [selectedId] : [];
+      setSelection(current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+    },
+    clearSelection: () => set({ selection: [] }),
+    duplicateSlides: (ids) => {
+      const { project } = get();
+      if (!project) return;
+      const wanted = new Set(ids);
+      let remaining = MAX_SLIDES - project.slides.length;
+      const copies: string[] = [];
+      const slides = project.slides.flatMap((slide) => {
+        if (!wanted.has(slide.id) || remaining <= 0) return [slide];
+        remaining--;
+        const copy = { ...slide, id: uid() };
+        copies.push(copy.id);
+        return [slide, copy];
+      });
+      if (!copies.length) return;
+      commit({ slides });
+      set({ selection: copies, selectedId: copies[0] });
+    },
+    removeSlides: (ids) => {
+      const { project, selectedId } = get();
+      if (!project || project.slides.length <= 1) return;
+      const wanted = new Set(ids);
+      const slides = project.slides.filter((s) => !wanted.has(s.id));
+      if (!slides.length) slides.push(project.slides[0]);
+      if (slides.length === project.slides.length) return;
+      commit({ slides });
+      if (!slides.some((s) => s.id === selectedId)) set({ selectedId: slides[0].id });
+    },
     setTitle: (title) => commit({ title }, "title"),
     setDesign: (patch) => {
       const { project } = get();
@@ -137,6 +182,27 @@ export const useEditor = create<EditorState>((set, get) => {
       const { project } = get();
       if (!project) return;
       commit({ slides: project.slides.map((s) => (s.id === id ? { ...s, ...patch } : s)) }, key ? `${id}:${key}` : undefined);
+    },
+
+    moveBlock: (id, block, offset) => {
+      const { project } = get();
+      const slide = project?.slides.find((s) => s.id === id);
+      if (!project || !slide) return;
+      const previous = slide.offsets?.[block];
+      if (offset ? previous?.x === offset.x && previous?.y === offset.y : !previous) return;
+      const offsets = { ...slide.offsets };
+      if (offset) offsets[block] = { ...offset };
+      else delete offsets[block];
+      commit({ slides: project.slides.map((s) => s.id === id ? { ...s, offsets } : s) });
+    },
+
+    organizeSlides: (ids) => {
+      const { project } = get();
+      if (!project) return;
+      const wanted = new Set(ids);
+      const needs = (s: Slide) => wanted.has(s.id) && (Object.keys(s.offsets ?? {}).length > 0 || s.gap != null || s.valign != null);
+      if (!project.slides.some(needs)) return;
+      commit({ slides: project.slides.map((s) => needs(s) ? { ...s, offsets: {}, gap: null, valign: null } : s) });
     },
 
     updateAllSlides: (patch) => {
@@ -198,7 +264,7 @@ export const useEditor = create<EditorState>((set, get) => {
       const slides = [...project.slides];
       slides.splice(index + 1, 0, slide);
       commit({ slides });
-      set({ selectedId: slide.id });
+      set({ selectedId: slide.id, selection: [] });
     },
 
     duplicateSlide: (id) => {
@@ -209,13 +275,14 @@ export const useEditor = create<EditorState>((set, get) => {
       const slides = [...project.slides];
       slides.splice(index + 1, 0, { ...project.slides[index], id: uid() });
       commit({ slides });
-      set({ selectedId: slides[index + 1].id });
+      set({ selectedId: slides[index + 1].id, selection: [] });
     },
 
     removeSlide: (id) => {
       const { project, selectedId } = get();
       if (!project || project.slides.length <= 1) return;
       const index = project.slides.findIndex((s) => s.id === id);
+      if (index < 0) return;
       const slides = project.slides.filter((s) => s.id !== id);
       commit({ slides });
       if (selectedId === id) set({ selectedId: slides[Math.min(index, slides.length - 1)]?.id ?? null });
@@ -236,6 +303,7 @@ export const useEditor = create<EditorState>((set, get) => {
       const previous = past[past.length - 1];
       set({
         project: { ...project, ...previous },
+        selection: get().selection.filter((id) => previous.slides.some((s) => s.id === id)),
         past: past.slice(0, -1),
         future: [snapshot(project), ...future],
         revision: get().revision + 1,
@@ -251,6 +319,7 @@ export const useEditor = create<EditorState>((set, get) => {
       const next = future[0];
       set({
         project: { ...project, ...next },
+        selection: get().selection.filter((id) => next.slides.some((s) => s.id === id)),
         past: [...past, snapshot(project)],
         future: future.slice(1),
         revision: get().revision + 1,

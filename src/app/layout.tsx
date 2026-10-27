@@ -6,19 +6,20 @@ import {
   DM_Serif_Display,
   Instrument_Serif,
   Inter,
+  JetBrains_Mono,
   Montserrat,
   Playfair_Display,
   Poppins,
   Space_Grotesk,
-  Wix_Madefor_Text,
 } from "next/font/google";
 import { Toaster } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { APP_NAME } from "@/lib/defaults";
 import "./globals.css";
 
-const ui = Wix_Madefor_Text({ subsets: ["latin"], variable: "--font-ui", display: "swap" });
+const ui = Inter({ subsets: ["latin"], axes: ["opsz"], variable: "--font-ui", display: "swap" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat", display: "swap" });
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage", display: "swap" });
 const instrument = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument", display: "swap" });
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const fonts = [ui, inter, montserrat, poppins, bricolage, space, instrument, playfair, dmserif, anton, caveat].map((f) => f.variable).join(" ");
+  const fonts = [ui, inter, mono, montserrat, poppins, bricolage, space, instrument, playfair, dmserif, anton, caveat].map((f) => f.variable).join(" ");
   return (
     <html lang="pt-BR" className={`dark ${fonts}`}>
       <body>

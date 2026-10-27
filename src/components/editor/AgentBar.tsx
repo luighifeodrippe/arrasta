@@ -215,12 +215,12 @@ export function AgentBar() {
                     !hasSlides
                       ? wide
                         ? "Recrie ou escreva um slide para começar"
-                        : "Recrie para começar"
+                        : "Crie slides"
                       : scope === "slide"
-                        ? `O que mudar no slide ${index + 1}?`
-                        : "Peça uma mudança…"
+                        ? wide ? `O que mudar no slide ${index + 1}?` : `Mudar S${index + 1}?`
+                        : wide ? "Peça uma mudança…" : "Peça algo"
                   }
-                  className="max-h-32 min-h-[48px] min-w-0 flex-1 resize-none bg-transparent px-2.5 py-3 text-[14.5px] leading-6 outline-none placeholder:text-ink-3 disabled:opacity-60"
+                  className="max-h-32 min-h-[48px] min-w-0 flex-1 resize-none bg-transparent px-2.5 py-3 text-[14.5px] leading-6 outline-none placeholder:whitespace-nowrap placeholder:text-ink-3 disabled:opacity-60"
                   aria-label="Pedido para o ChatGPT"
                 />
                 <ModelPicker compact={!roomy} />
@@ -260,7 +260,7 @@ function LastReply({ entry, onDismiss, onOpen }: { entry: ChatEntry; onDismiss: 
   const [hovered, setHovered] = useState(false);
   useEffect(() => {
     if (hovered) return;
-    const timer = setTimeout(onDismiss, 14000);
+    const timer = setTimeout(onDismiss, 6000);
     return () => clearTimeout(timer);
   }, [hovered, onDismiss]);
   return (

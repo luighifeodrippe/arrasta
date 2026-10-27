@@ -113,8 +113,8 @@ export function useAgentActions() {
           );
           useAgent.getState().flash(next.slides.map((s) => s.id));
           window.dispatchEvent(new CustomEvent("arrasta:generated"));
-        } else if (last?.type === "error") {
-          fail(task, last.message, startedAt, last.needsLogin);
+        } else {
+          fail(task, last?.type === "error" ? last.message : "A conexão com o ChatGPT caiu antes do fim. Tente de novo.", startedAt, last?.type === "error" && last.needsLogin);
         }
       } catch (error) {
         fail(task, (error as Error).name === "AbortError" ? "Cancelado." : (error as Error).message, startedAt);
@@ -168,7 +168,7 @@ export function useAgentActions() {
           useAgent.getState().flash(changed);
           return true;
         }
-        if (last?.type === "error") fail("edit", last.message, startedAt, last.needsLogin);
+        fail("edit", last?.type === "error" ? last.message : "A conexão com o ChatGPT caiu antes do fim. Tente de novo.", startedAt, last?.type === "error" && last.needsLogin);
       } catch (error) {
         fail("edit", (error as Error).name === "AbortError" ? "Cancelado." : (error as Error).message, startedAt);
       } finally {

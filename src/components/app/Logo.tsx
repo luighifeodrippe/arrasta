@@ -13,9 +13,9 @@ export function LogoMark({ size = 28 }: { size?: number }) {
 
 export function Logo() {
   return (
-    <span className="flex items-center gap-2.5">
-      <LogoMark />
-      <span className="text-[17px] font-semibold tracking-[-0.02em]">{APP_NAME}</span>
+    <span className="-ml-0.5 flex shrink-0 items-center gap-2.5">
+      <span className="drop-shadow-[0_0_12px_rgb(255_53_0/0.35)]"><LogoMark /></span>
+      <span className="titulo text-[18px]">{APP_NAME}</span>
     </span>
   );
 }

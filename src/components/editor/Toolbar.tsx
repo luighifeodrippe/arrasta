@@ -1,7 +1,10 @@
 "use client";
 
+import { useModKey } from "@/lib/client/shortcut";
+
 import {
   AiMagicIcon,
+  ArrangeIcon,
   ArrowDown01Icon,
   Camera01Icon,
   Delete02Icon,
@@ -184,6 +187,7 @@ export function EditorToolbar() {
       <Emphasis />
       <SpacingPicker slide={slide} />
       <AlignPicker slide={slide} />
+      <OrganizeButton ids={[slide.id]} />
       <DeleteField slide={slide} />
       <Separator />
       <ImagePicker slide={slide} />
@@ -193,6 +197,19 @@ export function EditorToolbar() {
       <Rewrite index={index} />
     </T.Root>
   );
+}
+
+/** O mesmo controle para o slide atual e para a seleção múltipla. */
+export function OrganizeButton({ ids }: { ids: string[] }) {
+  const organize = () => {
+    const state = useEditor.getState();
+    const needs = state.project?.slides.some((s) => ids.includes(s.id) && (Object.keys(s.offsets ?? {}).length > 0 || s.gap != null || s.valign != null));
+    if (!needs) { toast(ids.length === 1 ? "Este slide já está organizado" : "Estes slides já estão organizados"); return; }
+    state.organizeSlides(ids);
+  };
+  return <Tip label="Organizar: volta as peças para o lugar, com o espaço certo">
+    <button type="button" className={itemClass} onClick={organize}><Icon icon={ArrangeIcon} />Organizar</button>
+  </Tip>;
 }
 
 function FontPicker() {
@@ -308,9 +325,10 @@ function ColorPicker({ slide }: { slide: Slide }) {
 }
 
 function Emphasis() {
+  const modKey = useModKey();
   const toggle = useEditing((s) => s.toggle);
   return (
-    <Tip label={toggle ? "Destacar a seleção (⌘B)" : "Clique no texto do card e selecione palavras para destacar"}>
+    <Tip label={toggle ? `Destacar a seleção (${modKey}B)` : "Clique no texto do card e selecione palavras para destacar"}>
       <T.Button
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => (toggle ? toggle() : toast("Clique no texto do card e selecione as palavras que quer destacar."))}
@@ -446,6 +464,7 @@ function AlignPicker({ slide }: { slide: Slide }) {
 
 /** Título e texto são opcionais: apaga o campo tocado (dá para desfazer com ⌘Z). */
 function DeleteField({ slide }: { slide: Slide }) {
+  const modKey = useModKey();
   const target = useEditing((s) => s.target);
   const updateSlide = useEditor((s) => s.updateSlide);
   if (!target || !slide[target]) return null;
@@ -457,7 +476,7 @@ function DeleteField({ slide }: { slide: Slide }) {
         onClick={() => {
           (document.activeElement as HTMLElement | null)?.blur();
           updateSlide(slide.id, { [target]: "" });
-          toast(`Apaguei ${what}. ⌘Z desfaz.`);
+          toast(`Apaguei ${what}. ${modKey}Z desfaz.`);
         }}
         className={cn(iconOnly, "hover:text-red-300")}
         aria-label={`Apagar ${what} deste slide`}
@@ -469,6 +488,7 @@ function DeleteField({ slide }: { slide: Slide }) {
 }
 
 function ImagePicker({ slide }: { slide: Slide }) {
+  const modKey = useModKey();
   const project = useEditor((s) => s.project)!;
   const updateSlide = useEditor((s) => s.updateSlide);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -569,7 +589,7 @@ function ImagePicker({ slide }: { slide: Slide }) {
           </div>
         </div>
       )}
-      <p className="text-[12px] leading-relaxed text-ink-3">Também dá para colar (⌘V) ou arrastar uma imagem para o card.</p>
+      <p className="text-[12px] leading-relaxed text-ink-3">Também dá para colar ({modKey}V) ou arrastar uma imagem para o card.</p>
       <input
         ref={fileRef}
         type="file"

@@ -24,12 +24,12 @@ export function Showcase() {
   const profile = useApp((s) => s.profile);
   const identity = identityOf(profile);
   return (
-    <div aria-hidden className="relative left-1/2 w-screen -translate-x-1/2 [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
-      <Marquee pauseOnHover repeat={2} className="[--duration:70s] [--gap:20px] py-4">
+    <div aria-hidden className="relative left-1/2 w-screen -translate-x-1/2 [mask-image:linear-gradient(to_right,transparent,black_var(--home-margin),black_calc(100%_-_var(--home-margin)),transparent)]">
+      <Marquee pauseOnHover repeat={2} className="[--duration:70s] [--gap:20px] p-0 pb-4">
         {SLIDES.map(({ design, slide }, i) => (
           <div
             key={i}
-            className="w-[150px] shrink-0 overflow-hidden rounded-[14px] shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_24px_50px_-24px_rgb(0_0_0/0.9)] sm:w-[196px]"
+            className="w-[150px] shrink-0 overflow-hidden rounded-[14px] shadow-[0_0_0_1px_rgb(255_255_255/0.1),0_24px_50px_-24px_rgb(0_0_0/0.9)] sm:w-[196px]"
           >
             <SlideFrame>
               <SlideCanvas slide={slide} index={0} total={7} design={design} identity={identity} />

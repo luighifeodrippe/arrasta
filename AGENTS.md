@@ -1,8 +1,8 @@
 # Arrasta AI · instruções para agentes
 
-Este repositório contém o Arrasta AI, editor local de carrosséis. Quando a pessoa enviar o link pedindo para começar, conduza a instalação e a personalização abaixo. Se ela pedir apenas revisão de código ou informação, respeite esse escopo.
+Este repositório contém o Arrasta AI, editor local de carrosséis disponibilizado como parte da operação NØFACE. Quando a pessoa enviar o link pedindo para começar, conduza a instalação e a personalização abaixo. Se ela pedir apenas revisão de código ou informação, respeite esse escopo.
 
-Ao apresentar o app, explique: ele usa a própria conta do ChatGPT pelo Codex, sem chave nem cobrança de API separada nesse modo. O acesso, os modelos e os limites dependem da conta; não prometa uso ilimitado. A [demonstração pública](https://luighi.com/arrasta/) apresenta o editor; login e geração exigem a instalação local.
+Ao apresentar o app, explique: o ChatGPT Work conduz o fluxo de instalação, personalização e criação; o editor usa a própria conta do ChatGPT pelo Codex, sem chave nem cobrança de API separada nesse modo. O acesso, os modelos e os limites dependem da conta; não prometa uso ilimitado. A [página pública](https://luighi.com/noface/) traz o tutorial completo, com as telas do app; login e geração exigem a instalação local.
 
 ## Instalar e abrir
 
@@ -37,11 +37,3 @@ Confira o carrossel renderizado: texto legível, imagens, cortes, perfil, propor
 - A geração envia os textos e imagens necessários à OpenAI. A sandbox somente leitura restringe gravações, mas não garante ausência de acesso de leitura a outros arquivos.
 - Para atualizar, confira alterações locais antes de `git pull --ff-only`, refaça `npm run setup` e reinicie o processo. Preserve os dados.
 - Para alterar código, consulte os scripts em `package.json`, rode os checks pertinentes e confira a interface real quando afetada. Preserve as licenças em `LICENSE` e `THIRD_PARTY_NOTICES.md`.
-
-<!-- BEGIN:nextjs-agent-rules -->
-
-## Next.js
-
-Before changing framework code, read the relevant guide in `node_modules/next/dist/docs/`. This installed version may differ from earlier Next.js conventions.
-
-<!-- END:nextjs-agent-rules -->

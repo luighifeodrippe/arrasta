@@ -1,5 +1,7 @@
 "use client";
 
+import { useModKey } from "@/lib/client/shortcut";
+
 import { Upload04Icon } from "@hugeicons/core-free-icons";
 import { useRef, useState } from "react";
 import { useEditor } from "@/lib/client/editor-store";
@@ -10,6 +12,7 @@ import { Icon } from "@/components/ui/icon";
 
 /** Biblioteca de imagens do carrossel: envie uma vez e use em qualquer slide, com um clique ou arrastando. */
 export function ImagesPanel() {
+  const modKey = useModKey();
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -75,7 +78,7 @@ export function ImagesPanel() {
         </Section>
       )}
       <p className="px-5 pb-6 pt-1 text-[12.5px] leading-relaxed text-ink-3">
-        Clique numa imagem para pôr no slide {index >= 0 ? index + 1 : "escolhido"}, ou arraste para qualquer card. Também dá para colar uma imagem copiada com ⌘V.
+        Clique numa imagem para pôr no slide {index >= 0 ? index + 1 : "escolhido"}, ou arraste para qualquer card. Também dá para colar uma imagem copiada com {modKey}V.
       </p>
     </div>
   );

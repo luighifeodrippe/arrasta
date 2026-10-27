@@ -13,8 +13,8 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "Destino inválido." }, { status: 400 });
   }
-  if (!(file instanceof File) || !file.type.startsWith("image/")) {
-    return Response.json({ error: "Envie uma imagem (JPG, PNG ou WebP)." }, { status: 400 });
+  if (!(file instanceof File) || !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+    return Response.json({ error: "Esse formato de imagem não funciona aqui. Envie JPG, PNG ou WebP (no iPhone, faça um print da foto)." }, { status: 400 });
   }
   if (file.size > MAX_BYTES) return Response.json({ error: "Imagem maior que 15 MB." }, { status: 400 });
   const name = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${extFor(file.type)}`;
