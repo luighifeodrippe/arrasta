@@ -35,6 +35,10 @@ Transforme uma ideia, um texto, um link ou prints em um carrossel. Configure sua
 
 O Arrasta abre uma parte da operação NØFACE: a produção de carrosséis. A estrutura foi construída com Codex; o ChatGPT Work conduz o fluxo, da instalação e da configuração da sua voz ao primeiro carrossel. É gratuito, de código aberto e roda no seu computador.
 
+<p align="center">
+  <img src="docs/midia/noface-vermilion.webp" alt="NØFACE em vermilion, com uma pessoa de costas diante de um horizonte incandescente." width="840">
+</p>
+
 ## Começar
 
 1. Copie o prompt abaixo e cole no **ChatGPT Work ou no Codex do seu computador**.
