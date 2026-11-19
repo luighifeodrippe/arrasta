@@ -23,17 +23,14 @@
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-reduced-motion: reduce)" srcset="docs/midia/editor-demo.png">
-    <img src="docs/midia/editor-demo.gif" alt="Demonstração do editor: edição de um card, destaque de texto, troca de modelo e prévia do post." width="840">
-  </picture>
+  <img src="preview/assets/telas/editor.webp" alt="O editor do Arrasta AI: o roteiro à esquerda, os cards no meio e o ChatGPT Work à direita, depois de recriar o carrossel e gerar as imagens de três cards." width="840">
 </p>
 
-<p align="center"><sub>Edição manual, formatação e troca de visual em capturas reais do app.</sub></p>
+<p align="center"><sub>Captura real do app: o ChatGPT Work recriou o carrossel na voz do perfil e gerou as imagens dos três primeiros cards.</sub></p>
 
-Transforme uma ideia, um texto, um link ou prints em um carrossel. Configure sua voz e referências, ajuste os cards por conversa ou diretamente no editor e baixe para publicar.
+Transforme uma ideia, um texto, um link ou prints em um carrossel. Configure sua voz e referências, ajuste os cards direto no editor ou pedindo ao ChatGPT Work, no painel ao lado, e baixe para publicar.
 
-O Arrasta abre uma parte da operação NØFACE: a produção de carrosséis. A estrutura foi construída com Codex; o ChatGPT Work conduz o fluxo, da instalação e da configuração da sua voz ao primeiro carrossel. É gratuito, de código aberto e roda no seu computador.
+O Arrasta abre uma parte da operação NØFACE: a produção de carrosséis. O ChatGPT Work pesquisou o mercado e montou o plano; o Codex construiu a ferramenta. No uso, o ChatGPT Work conduz o fluxo, da instalação e da configuração da sua voz ao primeiro carrossel. É gratuito, de código aberto e roda no seu computador.
 
 <p align="center">
   <img src="docs/midia/noface-vermilion.webp" alt="NØFACE em vermilion, com uma pessoa de costas diante de um horizonte incandescente." width="840">
@@ -76,7 +73,7 @@ O agente precisa de terminal com acesso ao computador onde o app vai rodar. Se e
 
 Cole um link acessível do Instagram, YouTube, X ou de um site. Você também pode escrever uma ideia, colar um texto, enviar prints ou começar em branco. Guarde links e textos no banco de conteúdos para transformar em carrosséis depois.
 
-![Tela inicial atual do Arrasta AI, com entrada por link, texto ou prints e o guia de primeiros passos.](docs/imagens/inicio.png)
+![Tela inicial do Arrasta AI, com entrada por link, texto ou prints e um link do YouTube colado.](docs/imagens/inicio.png)
 
 ### Um método editorial por trás de cada carrossel
 
@@ -86,20 +83,20 @@ Por padrão, cada carrossel passa por um método completo, em qualquer nicho: ap
 
 Use seu @, exemplos de textos seus e perfis de referência para configurar a escrita. Escolha o que quer aproveitar de cada referência e ajuste sua influência, seu público e suas preferências.
 
-<img src="preview/assets/telas/voz.webp" alt="Ajustes de voz: perfil próprio, referências de escrita e exemplos de textos." width="660">
+<img src="preview/assets/telas/voz.webp" alt="Ajustes, aba Minha voz: o seu @ do Instagram e uma caixa para colar textos seus." width="660">
 
 Se o Instagram bloquear a leitura, você pode colar legendas ou fornecer prints. [Entenda a importação e seus limites](docs/GUIA.md#instagram-e-referências).
 
-### Edite direto ou peça uma mudança
+### Edite direto ou peça ao ChatGPT Work
 
-Clique no texto para escrever e formatar. Troque fonte, cor, fundo, imagem e posição dos elementos, com desfazer e refazer. Na conversa, peça uma mudança no carrossel inteiro ou apenas no slide selecionado.
+Clique no texto para escrever e formatar. Troque fonte, cor, fundo, imagem e posição dos elementos, com desfazer e refazer. No painel do ChatGPT Work, ao lado, peça uma mudança no carrossel inteiro ou clique num card para mudar só ele. Mande imagens para ele colocar nos cards ou peça para gerar.
 
-![Barra de conversa do editor, com seleção de carrossel ou slide e um pedido para encurtar os títulos.](preview/assets/telas/pedir.webp)
+<img src="preview/assets/telas/pedir.webp" alt="O painel do ChatGPT Work: o pedido Recrie este carrossel na minha voz, os 13 cards refeitos e as imagens geradas para os cards 1, 2 e 3." width="380">
 
 <details>
 <summary>Ver as opções de reescrita de um card</summary>
 
-<img src="preview/assets/telas/reescrever.webp" alt="Menu de reescrita com as opções Mais curto, Gancho mais forte, Mais simples, Outra versão e Corrigir erros." width="520">
+<img src="preview/assets/telas/reescrever.webp" alt="Menu Reescrever com o ChatGPT Work: Título, Texto ou Card todo, e as opções Gancho mais forte, Mais curto, Mais provocativo e Outra versão." width="420">
 
 </details>
 
@@ -114,7 +111,7 @@ Os modelos mudam o visual do carrossel inteiro. Personalize fontes, cores e fund
   </picture>
 </p>
 
-<p align="center"><sub>Um conteúdo, nove visuais. <a href="https://luighi.com/noface/#modelos">Explore todos os modelos.</a></sub></p>
+<p align="center"><sub>Um conteúdo em nove dos dez modelos. <a href="https://luighi.com/noface/#modelos">Veja os dez, com o Manchete.</a></sub></p>
 
 <details>
 <summary>Comparar três modelos lado a lado</summary>
@@ -131,7 +128,7 @@ Os modelos mudam o visual do carrossel inteiro. Personalize fontes, cores e fund
 
 Use as guias no editor e as prévias de Feed, Story, Explorar e Reels para conferir o conteúdo antes de publicar.
 
-<img src="preview/assets/telas/previa.webp" alt="Prévia do Explorar do Instagram com a capa na grade e a área de segurança marcada." width="420">
+<img src="preview/assets/telas/previa.webp" alt="Prévia do Feed do Instagram com a capa do carrossel e a legenda." width="420">
 
 ### Baixe os cards e a legenda
 
