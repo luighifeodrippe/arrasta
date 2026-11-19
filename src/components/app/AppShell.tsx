@@ -4,6 +4,7 @@ import { MotionConfig } from "motion/react";
 import { useEffect, type ReactNode } from "react";
 import { useApp } from "@/lib/client/app-store";
 import { TooltipProvider } from "../ui/tooltip";
+import { LaunchOverlay } from "../editor/LaunchOverlay";
 import { LoginDialog } from "./ChatGPTAccount";
 import { SettingsDialog } from "./SettingsDialog";
 
@@ -27,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <MotionConfig reducedMotion="user">
       <TooltipProvider>
         {children}
+        <LaunchOverlay />
         <LoginDialog />
         <SettingsDialog />
       </TooltipProvider>

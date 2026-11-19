@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import {
   Anton,
+  Barlow_Condensed,
   Bricolage_Grotesque,
   Caveat,
+  DM_Sans,
   DM_Serif_Display,
   Instrument_Serif,
   Inter,
   JetBrains_Mono,
   Montserrat,
   Playfair_Display,
+  Plus_Jakarta_Sans,
   Poppins,
   Space_Grotesk,
 } from "next/font/google";
@@ -25,6 +28,9 @@ const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-br
 const instrument = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument", display: "swap" });
 const dmserif = DM_Serif_Display({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-dmserif", display: "swap" });
 const anton = Anton({ subsets: ["latin"], weight: "400", variable: "--font-anton", display: "swap" });
+const barlow = Barlow_Condensed({ subsets: ["latin"], weight: ["700", "800", "900"], variable: "--font-barlow", display: "swap" });
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta", display: "swap" });
+const dmsans = DM_Sans({ subsets: ["latin"], variable: "--font-dmsans", display: "swap" });
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-poppins", display: "swap" });
 const space = Space_Grotesk({ subsets: ["latin"], variable: "--font-space", display: "swap" });
 const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-playfair", display: "swap" });
@@ -36,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const fonts = [ui, inter, mono, montserrat, poppins, bricolage, space, instrument, playfair, dmserif, anton, caveat].map((f) => f.variable).join(" ");
+  const fonts = [ui, inter, mono, montserrat, poppins, bricolage, space, instrument, playfair, dmserif, anton, barlow, jakarta, dmsans, caveat].map((f) => f.variable).join(" ");
   return (
     <html lang="pt-BR" className={`dark ${fonts}`}>
       <body>

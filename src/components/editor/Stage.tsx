@@ -15,7 +15,6 @@ import { ArrowRight02Icon, Copy01Icon, Delete02Icon, DragDropVerticalIcon, Layou
 import { restoreLayout, useStageView, type Layout } from "./stage-view";
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ThinkingOrb } from "thinking-orbs";
 import { useModKey } from "@/lib/client/shortcut";
 import { cardWidth, MAX_ZOOM, MIN_ZOOM } from "@/lib/client/stage-math";
 import { StageGuides } from "./StageGuides";
@@ -24,29 +23,29 @@ import { useStageCamera } from "./use-stage-camera";
 import { identityOf, useApp } from "@/lib/client/app-store";
 import { useEditor } from "@/lib/client/editor-store";
 import { IMAGE_DRAG_TYPE, placeImage, uploadToSlide } from "@/lib/client/images";
-import { fitRowSlideWidth, FONTS, MAX_SLIDES, SLIDE_KINDS, SLIDE_W, slideHeight, TEMPLATES } from "@/lib/defaults";
+import { fitRowSlideWidth, MAX_SLIDES, SLIDE_KINDS, SLIDE_W, slideHeight } from "@/lib/defaults";
 import type { Design, Project, Slide } from "@/lib/types";
 import type { EditBinding } from "../slide/editing";
 import { SlideCanvas, SlideFrame, type SlideIdentity } from "../slide/SlideCanvas";
-import { AuroraArt } from "../ui/aurora-art";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
 import { Tip } from "../ui/tooltip";
 import { useAgent } from "./agent-store";
-import { AgentSteps } from "./AgentSteps";
+import { Launcher } from "../app/Launcher";
+import { Mission, Shots } from "./Mission";
 import { useEditing } from "./editing-store";
 import { EditorToolbar } from "./Toolbar";
 import { useAgentActions } from "./use-agent-actions";
+import { CoversDialog } from "./CoversDialog";
 import { Icon } from "@/components/ui/icon";
 
 /** Espaço vertical que não é do card: barra de ferramentas em cima, rótulo do card e a barra do ChatGPT embaixo. */
 const LABEL = 28;
-const BAR = 112;
 const TOOL = 64;
 const FLASH_MS = 4000;
 
 /** Zoom dos cards e lado a lado ou em coluna; fica na barra do topo do editor. */
-export function ViewControls() {
+export function ViewControls({ className }: { className?: string }) {
   const zoom = useStageView((s) => s.zoom);
   const layout = useStageView((s) => s.layout);
   const zoomIn = useStageView((s) => s.zoomIn);
@@ -59,7 +58,7 @@ export function ViewControls() {
   const setLayout = useStageView((s) => s.setLayout);
   const button = "grid size-8 place-items-center rounded-[9px] transition-colors disabled:opacity-35";
   return (
-    <div className="flex items-center rounded-[11px] border border-white/[0.07] p-0.5">
+    <div className={cn("well flex items-center rounded-[11px] p-0.5", className)}>
       <Tip label={`Diminuir (${mod}−)`}>
         <button onClick={zoomOut} disabled={zoom <= MIN_ZOOM} className={cn(button, "text-ink-2 hover:bg-white/[0.07] hover:text-ink")} aria-label="Diminuir">
           <Icon icon={MinusSignIcon} className="size-4" />
@@ -73,11 +72,11 @@ export function ViewControls() {
           <Icon icon={PlusSignIcon} className="size-4" />
         </button>
       </Tip>
-      <Tip label="Guias do Instagram">
-        <button onClick={toggleGuides} aria-pressed={guides} aria-label="Guias do Instagram" className={cn(button, guides ? "bg-white/[0.1] text-ink" : "text-ink-2 hover:bg-white/[0.07] hover:text-ink")}><Icon icon={GridViewIcon} className="size-4" /></button>
+      <Tip label="Margens do Instagram">
+        <button onClick={toggleGuides} aria-pressed={guides} aria-label="Margens do Instagram" className={cn(button, guides ? "bg-white/[0.1] text-ink" : "text-ink-2 hover:bg-white/[0.07] hover:text-ink")}><Icon icon={GridViewIcon} className="size-4" /></button>
       </Tip>
       <span className="mx-0.5 h-4 w-px bg-white/[0.1]" aria-hidden />
-      <div role="radiogroup" aria-label="Como mostrar os slides" className="flex">
+      <div role="radiogroup" aria-label="Como mostrar os cards" className="flex">
         {(
           [
             ["row", "Lado a lado", <Icon icon={Layout3ColumnIcon} key="row" className="size-4" />],
@@ -138,7 +137,8 @@ export function Stage({ onDownload }: { onDownload: (ids: string[]) => void }) {
   const working = running && (kind === "remix" || kind === "create");
   const tools = !working && project.slides.length > 0;
   const toolSpace = tools ? TOOL : 0;
-  const fitHeight = Math.max(0, box.h - toolSpace - LABEL - BAR - 32);
+  const barSpace = useStageView((s) => s.barSpace);
+  const fitHeight = Math.max(0, box.h - toolSpace - LABEL - barSpace - 32);
   const fittedWidth = cardWidth(fitHeight, zoom, ratio, "row", box.w);
   const rowWidth = layout === "row" && !working && zoom <= 0.9
     ? fitRowSlideWidth(fittedWidth, box.w - 64, project.slides.length, box.gap)
@@ -152,10 +152,10 @@ export function Stage({ onDownload }: { onDownload: (ids: string[]) => void }) {
     <div
       ref={containerRef}
       className="relative h-full min-h-0 min-w-0 overflow-hidden bg-[radial-gradient(rgb(255_255_255/0.055)_1px,transparent_1.2px)] [background-size:22px_22px]"
-      style={{ ["--stage-top" as string]: `${top}px`, ["--tool" as string]: `${toolSpace}px` }}
+      style={{ ["--stage-top" as string]: `${top}px`, ["--tool" as string]: `${toolSpace}px`, ["--bar" as string]: `${barSpace + 40}px` }}
     >
       {working ? (
-        <WorkView project={project} width={rowWidth} ratio={ratio} />
+        <Mission project={project} />
       ) : project.slides.length === 0 ? (
         <EmptyStage project={project} />
       ) : (
@@ -205,7 +205,7 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
       className={cn(
         "h-full min-w-0 overscroll-none overflow-auto [overflow-anchor:none]",
         "pl-[calc(var(--stage-side)+var(--camera-left,0px))] pr-[calc(var(--stage-side)+var(--camera-right,0px))]",
-        "pt-[calc(var(--stage-top)+var(--camera-top,0px))] pb-[calc(152px+var(--camera-bottom,0px))]",
+        "pt-[calc(var(--stage-top)+var(--camera-top,0px))] pb-[calc(var(--bar)+var(--camera-bottom,0px))]",
         !column && "no-scrollbar",
       )}
       style={{
@@ -249,7 +249,7 @@ function SlideList({ project, width, ratio, layout }: { project: Project; width:
                 )}
               >
                 <Icon icon={PlusSignIcon} className="size-5" />
-                Slide
+                Card
               </button>
             )}
           </div>
@@ -295,6 +295,9 @@ function SortableCard({
   const [dropping, setDropping] = useState(false);
   const kindName = SLIDE_KINDS.find((k) => k.id === slide.kind)?.name ?? "";
   const flashed = useFlash(highlight.ids.includes(slide.id) ? highlight.at : 0);
+  const imaging = useAgent((s) => s.imaging.includes(slide.id));
+  // O ChatGPT Work está mexendo neste card agora (pedido de edição em andamento).
+  const rewriting = useAgent((s) => s.running && s.kind === "edit" && (s.focus.length === 0 || s.focus.includes(slide.id)));
 
   const binding = useMemo<EditBinding | undefined>(() => {
     if (!editable) return undefined;
@@ -330,19 +333,10 @@ function SortableCard({
         animate={{ opacity: 1, y: 0, filter: "blur(0px)", transitionEnd: { filter: "none" } }}
         transition={{ duration: 0.55, ease: [0.23, 1, 0.32, 1], delay: Math.min(index, 10) * 0.06 }}
       >
-        <div className="mb-2.5 flex h-[18px] items-center justify-between gap-2 px-0.5 text-[12px]">
+        <div className="@container mb-2.5 flex h-[18px] items-center justify-between gap-2 text-[12px]">
           <span className={cn("flex min-w-0 items-center gap-1 font-medium tabular-nums transition-colors", selected ? "text-ink" : "text-ink-3")}>
-            <button
-              ref={setActivatorNodeRef}
-              {...listeners}
-              {...attributes}
-              aria-label={`Arrastar o slide ${index + 1}`}
-              className="-ml-1.5 grid size-6 cursor-grab touch-none place-items-center rounded-[7px] text-ink-3 opacity-60 transition-opacity hover:bg-white/[0.08] hover:text-ink hover:opacity-100 active:cursor-grabbing"
-            >
-              <Icon icon={DragDropVerticalIcon} className="size-3.5" />
-            </button>
-            {index + 1}
-            <span className="ml-1.5 truncate font-normal text-ink-3">{kindName}</span>
+            <span className="stage-n" data-on={selected || undefined}>{index + 1}</span>
+            <span className={cn("ml-1 truncate font-normal", selected ? "text-ink" : "text-ink-3")}>{kindName}</span>
             {flashed && (
               <motion.span
                 initial={{ opacity: 0, x: -4 }}
@@ -354,38 +348,50 @@ function SortableCard({
               </motion.span>
             )}
           </span>
-          {editing ? (
-            <span className="flex items-center gap-1">
-              <button
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => (document.activeElement as HTMLElement | null)?.blur()}
-                className="flex h-6 items-center gap-1 rounded-[7px] px-1.5 text-[11.5px] text-ink-2 transition-colors hover:bg-white/[0.08] hover:text-ink"
-              >
-                <Icon icon={Tick02Icon} className="size-3.5" />
-                Pronto
-              </button>
-            </span>
-          ) : (
-            <span className={cn("flex items-center gap-0.5 transition-opacity", selected ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
-              <Tip label="Duplicar">
-                <button onClick={() => duplicateSlide(slide.id)} className="grid size-6 place-items-center rounded-[7px] text-ink-3 hover:bg-white/[0.08] hover:text-ink" aria-label="Duplicar slide">
-                  <Icon icon={Copy01Icon} className="size-3.5" />
+          <div className="-mr-[5px] flex shrink-0 items-center gap-0.5">
+            {index === 0 && slide.kind === "cover" && <CoversDialog />}
+            <button
+              ref={setActivatorNodeRef}
+              {...listeners}
+              {...attributes}
+              aria-label={`Arrastar o card ${index + 1}`}
+              className="grid size-6 cursor-grab touch-none place-items-center rounded-[7px] text-ink-3 opacity-60 transition-opacity hover:bg-white/[0.08] hover:text-ink hover:opacity-100 active:cursor-grabbing"
+            >
+              <Icon icon={DragDropVerticalIcon} className="size-3.5" />
+            </button>
+            {editing ? (
+              <span className="flex items-center gap-1">
+                <button
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => (document.activeElement as HTMLElement | null)?.blur()}
+                  className="flex h-6 items-center gap-1 rounded-[7px] px-1.5 text-[11.5px] text-ink-2 transition-colors hover:bg-white/[0.08] hover:text-ink"
+                >
+                  <Icon icon={Tick02Icon} className="size-3.5" />
+                  Pronto
                 </button>
-              </Tip>
-              {total > 1 && (
-                <Tip label="Excluir">
-                  <button onClick={() => removeSlide(slide.id)} className="grid size-6 place-items-center rounded-[7px] text-ink-3 hover:bg-red-500/15 hover:text-red-300" aria-label="Excluir slide">
-                    <Icon icon={Delete02Icon} className="size-3.5" />
+              </span>
+            ) : (
+              <span className={cn("flex items-center gap-0.5 transition-opacity", selected ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+                <Tip label="Duplicar">
+                  <button onClick={() => duplicateSlide(slide.id)} className="grid size-6 place-items-center rounded-[7px] text-ink-3 hover:bg-white/[0.08] hover:text-ink" aria-label="Duplicar card">
+                    <Icon icon={Copy01Icon} className="size-3.5" />
                   </button>
                 </Tip>
-              )}
-            </span>
-          )}
+                {total > 1 && (
+                  <Tip label="Excluir">
+                    <button onClick={() => removeSlide(slide.id)} className="grid size-6 place-items-center rounded-[7px] text-ink-3 hover:bg-red-500/15 hover:text-red-300" aria-label="Excluir card">
+                      <Icon icon={Delete02Icon} className="size-3.5" />
+                    </button>
+                  </Tip>
+                )}
+              </span>
+            )}
+          </div>
         </div>
         <div
           data-stage-card-face={slide.id}
           role="group"
-          aria-label={`Slide ${index + 1}${selected ? editable ? ", selecionado: clique no texto para editar" : ", selecionado" : ""}`}
+          aria-label={`Card ${index + 1}${selected ? editable ? ", selecionado: clique no texto para editar" : ", selecionado" : ""}`}
           tabIndex={selected ? -1 : 0}
           onClickCapture={(event) => {
             if (event.shiftKey || event.metaKey || event.ctrlKey) {
@@ -427,11 +433,12 @@ function SortableCard({
           className={cn(
             "relative block w-full overflow-hidden rounded-[16px] outline-none transition-[box-shadow,transform] duration-200 ease-out",
             selected
-              ? "shadow-[0_0_0_2px_rgb(255_255_255/0.9),0_24px_60px_-20px_rgb(0_0_0/0.9)]"
+              ? "shadow-[0_0_0_1px_rgb(255_255_255/0.16),0_0_0_5px_#050505,0_0_0_7px_#ffffff,0_0_34px_2px_rgb(255_255_255/0.22),0_24px_60px_-20px_rgb(0_0_0/0.9)]"
               : "shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_18px_44px_-24px_rgb(0_0_0/0.9)] hover:shadow-[0_0_0_1px_rgb(255_255_255/0.22),0_18px_44px_-24px_rgb(0_0_0/0.9)] focus-visible:shadow-[0_0_0_2px_rgb(255_255_255/0.5)]",
             "cursor-grab active:cursor-grabbing",
             flashed && !selected && "shadow-[0_0_0_2px_rgb(255_255_255/0.55),0_0_40px_-6px_rgb(255_255_255/0.35)]",
             isDragging && "scale-[1.02] cursor-grabbing shadow-[0_0_0_2px_rgb(255_255_255/0.9),0_40px_80px_-20px_rgb(0_0_0/0.95)]",
+            rewriting && !selected && "shadow-[0_0_0_1.5px_rgb(255_106_42/0.7),0_0_34px_-6px_rgb(255_53_0/0.6)]",
             dropping && "shadow-[0_0_0_2px_#ff3500]",
           )}
         >
@@ -439,6 +446,23 @@ function SortableCard({
             <SlideCanvas slide={slide} index={index} total={total} design={design} identity={identity} edit={binding} />
           </SlideFrame>
           {guides && <StageGuides size={design.size} />}
+          {rewriting && (
+            <div className="card-working" role="status">
+              <span className="exhibit-beam arrasta-scan" style={{ animationDelay: `${(index % 5) * 0.22}s` }} aria-hidden />
+              <span className="seal" data-tone="warn">
+                <i aria-hidden />
+                reescrevendo
+              </span>
+            </div>
+          )}
+          {imaging && (
+            <div className="card-imaging" role="status">
+              <span className="seal" data-tone="good">
+                <i className="animate-pulse" aria-hidden />
+                gerando a imagem
+              </span>
+            </div>
+          )}
           {dropping && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/55 text-[13px] font-medium text-white">
               Solte para usar a imagem
@@ -457,7 +481,7 @@ function EmptyStage({ project }: { project: Project }) {
   const source = project.source;
   const isIdea = source?.kind === "idea";
   const what = !source
-    ? "Este carrossel ainda não tem slides."
+    ? "Este carrossel ainda não tem cards."
     : isIdea
       ? `“${source.brief}”`
       : source.kind === "x"
@@ -466,24 +490,41 @@ function EmptyStage({ project }: { project: Project }) {
           ? `“${source.title ?? source.url}” pronto para virar carrossel.`
           : source.kind === "youtube"
             ? `Vídeo “${source.title ?? ""}” pronto para virar carrossel.`
-          : `${source.slides.length} slides originais prontos para recriar.`;
+          : `${source.slides.length} cards originais prontos para recriar.`;
+  const shots = source?.slides ?? [];
   return (
-    <div className="flex h-full items-center justify-center px-6 pb-28">
-      <div className="flex max-w-[460px] flex-col items-center gap-5 text-center">
-        <AuroraArt className="-mb-6 max-w-[440px] opacity-90" />
-        <p className="text-pretty text-[15px] leading-relaxed text-ink-2">{what}</p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {source && (
-            <Button variant="primary" size="lg" onClick={() => generate(isIdea ? "create" : "remix")}>
+    <div className="flex h-full items-center justify-center overflow-y-auto px-6 py-8">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+        className="pane flex w-full max-w-[480px] flex-col gap-3 rounded-[20px] p-5"
+      >
+        {source ? (
+          <>
+            <div>
+              <p className="mission-kicker">Pronto para começar</p>
+              <h2 className="mt-0.5 text-pretty text-[17px] font-semibold leading-snug tracking-[-0.01em]">{what}</h2>
+            </div>
+            {shots.length > 0 && <Shots shots={shots.map((shot) => shot.src)} reading={false} />}
+            <Button variant="lit" size="lg" className="mt-1 w-full" onClick={() => generate(isIdea ? "create" : "remix")}>
               {isIdea ? "Escrever na minha voz" : "Recriar na minha voz"}
               <Icon icon={ArrowRight02Icon} />
             </Button>
-          )}
-          <Button variant="ghost" size="lg" onClick={() => addSlide(null)}>
-            Começar em branco
-          </Button>
-        </div>
-      </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Comece este carrossel</h2>
+              <p className="panel-note mt-1">Cole um link, um texto ou os prints de um carrossel que funcionou. O ChatGPT Work recria na sua voz.</p>
+            </div>
+            <Launcher compact />
+          </>
+        )}
+        <button type="button" className="chip-key h-9 w-full justify-center" onClick={() => addSlide(null)}>
+          Começar com um card em branco
+        </button>
+      </motion.div>
     </div>
   );
 }
@@ -498,195 +539,4 @@ function useFlash(at: number) {
     return () => clearTimeout(timer);
   }, [at]);
   return on;
-}
-
-/** Enquanto o ChatGPT trabalha: o original passa pela leitura, depois vira base da reescrita. */
-function WorkView({ project, width, ratio }: { project: Project; width: number; ratio: number }) {
-  const phase = useAgent((s) => s.phase);
-  const source = project.source;
-  const sources = source?.slides ?? [];
-
-  if (source && (source.kind === "x" || source.kind === "web" || source.kind === "youtube")) {
-    const isVideo = source.kind === "youtube";
-    return (
-      <div className="flex h-full items-start justify-center px-8 pt-[var(--stage-top)]">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          className="glass relative flex w-full max-w-[520px] flex-col gap-4 overflow-hidden rounded-[22px] p-6"
-          style={{ minHeight: width * 0.9 }}
-        >
-          <div className="flex items-center gap-3">
-            {source.author?.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={source.author.avatar} alt="" className="size-11 rounded-full object-cover" />
-            ) : (
-              <span className="grid size-11 place-items-center rounded-full bg-white/[0.08] text-[15px] font-semibold text-ink-2">{(source.site ?? "?").charAt(0).toUpperCase()}</span>
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold">{isVideo ? source.title : (source.author?.fullName ?? source.title ?? source.site)}</p>
-              <p className="truncate text-[13px] text-ink-3">{isVideo ? `${source.author?.fullName ?? ""} · YouTube` : source.author ? `@${source.author.username} · X` : source.site}</p>
-            </div>
-          </div>
-          <AgentSteps
-            steps={
-              isVideo
-                ? [
-                    { label: "Abrir o vídeo", state: "done" },
-                    { label: `Ler a transcrição${source.duration ? ` (${Math.round(source.duration / 60)} min de fala)` : ""}`, state: "done" },
-                    { label: "Escrever na sua voz", state: "active" },
-                  ]
-                : [
-                    { label: source.kind === "x" ? "Abrir o post" : "Abrir a página", state: "done" },
-                    { label: "Ler e escrever na sua voz", state: "active" },
-                  ]
-            }
-          />
-          {isVideo && source.media[0] ? (
-            <div className="relative overflow-hidden rounded-[14px] border border-white/10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={source.media[0]} alt="" className="aspect-video w-full object-cover" />
-              {source.duration && (
-                <span className="absolute bottom-2 right-2 rounded-[6px] bg-black/75 px-1.5 py-0.5 text-[11.5px] font-medium tabular-nums text-white">
-                  {Math.floor(source.duration / 60)}:{String(source.duration % 60).padStart(2, "0")}
-                </span>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="line-clamp-[7] whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{source.text}</p>
-              {source.media[0] && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={source.media[0]} alt="" className="max-h-[180px] w-full rounded-[14px] border border-white/10 object-cover" />
-              )}
-            </>
-          )}
-          <div className="pointer-events-none absolute inset-0">
-            <div className="arrasta-scan absolute inset-x-0 top-0 h-[10%]" style={{ background: "linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.12) 70%, rgb(255 255 255 / 0.4) 96%, transparent)" }} />
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (!sources.length) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-6 px-8 pb-28 text-center">
-        <ThinkingOrb state="composing" size={64} theme="dark" aria-label="Escrevendo" />
-        {source?.brief && <p className="max-w-[460px] text-pretty text-[15px] leading-relaxed text-ink-2">“{source.brief}”</p>}
-        <div className="flex gap-3 opacity-80">
-          {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="arrasta-shimmer glass-flat rounded-[12px]" style={{ width: width * 0.32, height: width * 0.4, animationDelay: `${i * 120}ms` }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const analysis = phase === "write" ? source?.analysis : null;
-  const style = phase === "write" ? source?.style : null;
-  const steps = [
-    { label: "Abrir o carrossel", state: "done" as const },
-    { label: `Ler ${sources.length === 1 ? "o slide" : `os ${sources.length} slides`}`, state: phase === "read" ? ("active" as const) : ("done" as const) },
-    { label: "Entender por que funciona", state: analysis ? ("done" as const) : ("todo" as const) },
-    { label: "Escrever na sua voz", state: phase === "write" ? ("active" as const) : ("todo" as const) },
-  ];
-  return (
-    <div
-      className="no-scrollbar flex h-full items-start overflow-x-auto px-[max(32px,calc(50%-var(--strip)/2))] pt-[var(--stage-top)]"
-      style={{ ["--strip" as string]: `${sources.length * (width + 20) + width * 1.15 + 20}px` }}
-    >
-      <div className="flex items-start gap-5 pb-6">
-        {(
-          <motion.div
-            initial={{ opacity: 0, x: -12, filter: "blur(8px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-            className="shrink-0"
-            style={{ width: width * 1.15 }}
-          >
-            <div className="mb-2.5 h-[18px] px-0.5 text-[12px] text-ink-2">ChatGPT trabalhando</div>
-            <div className="glass flex flex-col gap-4 overflow-y-auto rounded-[16px] p-5" style={{ height: width * ratio }}>
-              <AgentSteps steps={steps} />
-              {analysis && <div className="h-px shrink-0 bg-line" />}
-              {analysis && [
-                ["Gancho", analysis.hook],
-                ["Estrutura", analysis.structure],
-                ["Por que funciona", analysis.why],
-              ].map(([term, text], i) => (
-                <motion.div
-                  key={term}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1], delay: 0.25 + i * 0.35 }}
-                >
-                  <p className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-ink-3">{term}</p>
-                  <p className="mt-1 text-[13.5px] leading-snug text-ink">{text}</p>
-                </motion.div>
-              ))}
-              {style && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.4, delay: 1.4 }}
-                  className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-line pt-3 text-[12px] text-ink-2"
-                >
-                  <span className="text-ink-3">Estilo:</span>
-                  <span className="rounded-full bg-white/[0.07] px-2 py-0.5">{TEMPLATES.find((t) => t.id === style.template)?.name}</span>
-                  <span className="rounded-full bg-white/[0.07] px-2 py-0.5">{style.theme === "dark" ? "Escuro" : "Claro"}</span>
-                  <span className="flex items-center gap-1 rounded-full bg-white/[0.07] px-2 py-0.5">
-                    <span className="size-2.5 rounded-full" style={{ background: style.accent }} />
-                    {style.accent}
-                  </span>
-                  <span className="rounded-full bg-white/[0.07] px-2 py-0.5">{FONTS.find((f) => f.id === style.font)?.name}</span>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-        )}
-        {sources.map((s, i) => {
-          const read = Boolean(s.text.trim());
-          return (
-            <motion.div
-              key={s.src}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: phase === "write" ? 0.72 : 1, y: 0 }}
-              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1], delay: i * 0.05 }}
-              className="shrink-0"
-              style={{ width }}
-            >
-              <div className="mb-2.5 flex h-[18px] items-center justify-between px-0.5 text-[12px] text-ink-3">
-                <span className="tabular-nums">Original {i + 1}</span>
-                {read && (
-                  <span className="flex items-center gap-1 text-ink-2">
-                    <Icon icon={Tick02Icon} className="size-3.5" /> lido
-                  </span>
-                )}
-              </div>
-              <div className="relative overflow-hidden rounded-[16px] shadow-[0_0_0_1px_rgb(255_255_255/0.08)]" style={{ height: width * ratio }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={s.src} alt={`Slide original ${i + 1}`} className="size-full object-cover" />
-                {phase === "write" && read && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.4, delay: 0.15 + i * 0.08 }}
-                    className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-3.5 pb-3.5 pt-10"
-                  >
-                    <p className="line-clamp-5 whitespace-pre-line text-[11.5px] leading-snug text-white/85">{s.text}</p>
-                  </motion.div>
-                )}
-                {phase === "read" && !read && (
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="arrasta-scan absolute inset-x-0 top-0 h-[10%]" style={{ animationDelay: `${i * 0.25}s`, background: "linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.22) 70%, rgb(255 255 255 / 0.6) 96%, transparent)" }} />
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
 }

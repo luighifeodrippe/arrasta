@@ -33,10 +33,10 @@ import { Segmented } from "../ui/segmented";
 import { Toggle } from "../ui/switch";
 
 const TABS: { value: SettingsTab; label: string; icon: IconData; title: string; description: string }[] = [
-  { value: "perfil", label: "Perfil", icon: UserCircleIcon, title: "Seu perfil e sua escrita", description: "Informe seu @ para trazer sua identidade e aprender seu estilo." },
-  { value: "voz", label: "Sua voz", icon: QuillWrite01Icon, title: "Sua voz", description: "Público, gostos e referências usados em cada carrossel." },
-  { value: "escrita", label: "Escrita", icon: NoteEditIcon, title: "Como o ChatGPT escreve", description: "As instruções do redator e o formato dos textos." },
-  { value: "formatos", label: "Formatos", icon: Layers01Icon, title: "Formatos de carrossel", description: "Estruturas que o ChatGPT segue ao criar: escolha uma na hora de colar o link." },
+  { value: "perfil", label: "Perfil", icon: UserCircleIcon, title: "Perfil", description: "Sua foto, seu nome e seu @ nos slides." },
+  { value: "voz", label: "Minha voz", icon: QuillWrite01Icon, title: "Minha voz", description: "Aprenda com seus textos e depois combine referências de outros perfis." },
+  { value: "escrita", label: "Regras do texto", icon: NoteEditIcon, title: "Regras do texto", description: "Idioma, tamanho e preferências para os textos dos carrosséis." },
+  { value: "formatos", label: "Formatos", icon: Layers01Icon, title: "Formatos de carrossel", description: "Escolha uma estrutura na aba Texto ou ao colar links de vídeos e artigos. Posts do Instagram e prints seguem o original." },
   { value: "chatgpt", label: "ChatGPT", icon: ChatGptIcon, title: "Sua conta do ChatGPT", description: "Modelo e ritmo usados em todas as tarefas." },
 ];
 
@@ -84,7 +84,7 @@ function useDraft<T>(source: T | null, open: boolean, save: (value: T) => Promis
   return [draft, setDraft] as const;
 }
 
-/** Configurações em abas: perfil, voz, escrita (instruções do sistema), formatos e conta do ChatGPT. */
+/** Identidade, voz, regras do texto, formatos e conta do ChatGPT. */
 export function SettingsDialog() {
   const tab = useApp((s) => s.settingsTab);
   const openSettings = useApp((s) => s.openSettings);
@@ -113,8 +113,8 @@ export function SettingsDialog() {
       <D.Portal>
         <D.Overlay className="arrasta-veil fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]" />
         <D.Content className="arrasta-dialog glass fixed left-1/2 top-1/2 z-50 flex h-[min(680px,calc(100dvh-32px))] w-[min(820px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[22px] text-ink outline-none sm:flex-row">
-          <nav aria-label="Configurações" className="no-scrollbar flex shrink-0 gap-1 overflow-x-auto border-b border-line p-2 sm:w-[196px] sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
-            <p className="hidden px-2.5 pb-2 pt-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3 sm:block">Configurações</p>
+          <nav aria-label="Ajustes" className="flex w-full min-w-0 max-w-full shrink-0 gap-1 overflow-x-auto border-b border-line p-2 sm:w-[196px] sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
+            <p className="hidden pb-2 pt-1.5 text-[13px] font-semibold text-ink-3 sm:block">Ajustes</p>
             {TABS.map((t) => (
               <button
                 key={t.value}
@@ -122,7 +122,7 @@ export function SettingsDialog() {
                 aria-current={t.value === current.value ? "page" : undefined}
                 className={cn(
                   "flex h-9 shrink-0 items-center gap-2.5 rounded-[10px] px-2.5 text-[13.5px] transition-colors",
-                  t.value === current.value ? "bg-white/[0.09] text-ink" : "text-ink-2 hover:bg-white/[0.05] hover:text-ink",
+                  t.value === current.value ? "selected text-ink" : "control text-ink-2 hover:text-ink",
                 )}
               >
                 <Icon icon={t.icon} className="size-[18px]" />
@@ -135,6 +135,9 @@ export function SettingsDialog() {
               <div className="min-w-0">
                 <D.Title className="text-[17px] font-semibold tracking-[-0.01em]">{current.title}</D.Title>
                 <D.Description className="mt-1 text-[13.5px] leading-relaxed text-ink-2">{current.description}</D.Description>
+                {status !== "idle" && <p role={status === "error" ? "alert" : "status"} className={cn("mt-2 text-[13px]", status === "error" ? "text-red-300" : "text-ink-2")}>
+                  {status === "saving" ? "Salvando…" : status === "saved" ? "Tudo salvo" : "Não consegui salvar. Confira se o Arrasta está rodando."}
+                </p>}
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6 pt-4">
@@ -144,11 +147,8 @@ export function SettingsDialog() {
               {current.value === "formatos" && <FormatsTab />}
               {current.value === "chatgpt" && <AccountTab />}
             </div>
-            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-line px-6 py-3.5">
-              <p className="text-[12.5px] text-ink-3" aria-live="polite">
-                {status === "saving" ? "Salvando…" : status === "saved" ? "Tudo salvo" : status === "error" ? "Não consegui salvar. Confira se o Arrasta está rodando." : "As mudanças são salvas sozinhas."}
-              </p>
-              <Button variant="primary" size="sm" onClick={closeSettings}>
+            <div className="flex shrink-0 justify-end border-t border-line px-6 py-3.5">
+              <Button variant="glass" size="sm" onClick={closeSettings}>
                 Pronto
               </Button>
             </div>
@@ -165,9 +165,8 @@ interface ProfileProps {
   update: (apply: (current: Profile) => Profile) => void;
 }
 
-function ProfileTab({ draft, patch, update }: ProfileProps) {
+function ProfileTab({ draft, patch }: ProfileProps) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const mappingBaseline = useRef(draft);
 
   const uploadAvatar = async (file: File) => {
     try {
@@ -181,69 +180,77 @@ function ProfileTab({ draft, patch, update }: ProfileProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-4">
-        <button onClick={() => fileRef.current?.click()} className="group relative size-20 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.05]" aria-label="Trocar a foto">
+      <section className="glass-flat flex flex-col gap-3.5 rounded-[14px] p-3.5" aria-label="Identidade nos cards">
+        <div className="flex items-center gap-4">
+          <button onClick={() => fileRef.current?.click()} className="control group/avatar relative size-20 shrink-0 overflow-hidden rounded-full" aria-label="Trocar a foto">
+            {draft.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={draft.avatar} alt="" className="size-full object-cover" />
+            ) : (
+              <span className="grid size-full place-items-center text-[26px] font-semibold text-ink-2">{initial}</span>
+            )}
+            <span className="absolute inset-0 grid place-items-center bg-black/55 opacity-0 transition-opacity group-hover/avatar:opacity-100">
+              <Icon icon={Camera01Icon} className="size-6" />
+            </span>
+          </button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => fileRef.current?.click()}>
+              <Icon icon={Upload04Icon} />
+              {draft.avatar ? "Trocar foto" : "Enviar foto"}
+            </Button>
+            {draft.avatar && (
+              <Button size="sm" variant="glass" onClick={() => patch({ avatar: null })}>
+                Remover
+              </Button>
+            )}
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void uploadAvatar(file);
+            }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <Label htmlFor="st-name">Nome</Label>
+            <Input id="st-name" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Seu nome" />
+          </div>
+          <div>
+            <Label htmlFor="st-handle">@ nos cards</Label>
+            <Input id="st-handle" value={draft.handle} onChange={(e) => patch({ handle: e.target.value.replace(/^@+/, "").replace(/\s/g, "") })} placeholder="seuperfil" maxLength={30} autoCapitalize="none" spellCheck={false} />
+          </div>
+          {draft.followers ? <p className="text-[12px] text-ink-3">{compact.format(draft.followers)} seguidores</p> : null}
+        </div>
+      </section>
+      <div className="glass-flat rounded-[14px] p-3.5">
+        <Toggle checked={draft.verified} onChange={(verified) => patch({ verified })} label="Mostrar selo de verificado nos cards" />
+      </div>
+
+      <section className="glass-flat rounded-[14px] p-3.5" aria-labelledby="st-profile-preview">
+        <h3 id="st-profile-preview" className="mb-3 text-[13px] font-semibold">Assim aparece nos cards</h3>
+        <div className="flex min-w-0 items-center gap-3">
           {draft.avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={draft.avatar} alt="" className="size-full object-cover" />
+            <img src={draft.avatar} alt="" className="size-11 shrink-0 rounded-full object-cover" />
           ) : (
-            <span className="grid size-full place-items-center text-[26px] font-semibold text-ink-2">{initial}</span>
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white/10 text-[15px] font-semibold text-ink-2">{initial}</span>
           )}
-          <span className="absolute inset-0 grid place-items-center bg-black/55 opacity-0 transition-opacity group-hover:opacity-100">
-            <Icon icon={Camera01Icon} className="size-6" />
-          </span>
-        </button>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => fileRef.current?.click()}>
-            <Icon icon={Upload04Icon} />
-            {draft.avatar ? "Trocar foto" : "Enviar foto"}
-          </Button>
-          {draft.avatar && (
-            <Button size="sm" variant="ghost" onClick={() => patch({ avatar: null })}>
-              Remover
-            </Button>
-          )}
+          <div className="min-w-0">
+            <p className="flex items-start gap-1.5 text-[14.5px] font-semibold">
+              <span className="min-w-0 break-words [overflow-wrap:anywhere]">{draft.name || "Seu nome"}</span>
+              {draft.verified && <Icon icon={Tick02Icon} className="mt-0.5 size-3.5 shrink-0 rounded-full bg-[#1d9bf0] p-[1px] text-white" strokeWidth={2.6} />}
+            </p>
+            <p className="truncate text-[13px] text-ink-3">@{draft.handle || "seuperfil"}</p>
+          </div>
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) void uploadAvatar(file);
-          }}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-3">
-        <div>
-          <Label htmlFor="st-name">Nome</Label>
-          <Input id="st-name" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Seu nome" />
-        </div>
-        <InstagramMapper handle={draft.handle} onHandleChange={(handle) => patch({ handle })} onStart={() => { mappingBaseline.current = draft; }} onMapped={(result) => update((current) => mergeInstagramProfile(current, result, mappingBaseline.current))} evidence={instagramHandle(draft.voiceAnalysis?.handle ?? "") === instagramHandle(draft.handle) ? draft.voiceAnalysis : undefined} />
-        {draft.followers ? <p className="text-[12px] text-ink-3">{compact.format(draft.followers)} seguidores</p> : null}
-      </div>
-
-      <Toggle checked={draft.verified} onChange={(verified) => patch({ verified })} label="Mostrar selo de verificado nos slides" />
-
-      <div className="glass-flat flex items-center gap-3 rounded-[16px] p-4">
-        {draft.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={draft.avatar} alt="" className="size-11 rounded-full object-cover" />
-        ) : (
-          <span className="grid size-11 place-items-center rounded-full bg-white/10 text-[15px] font-semibold text-ink-2">{initial}</span>
-        )}
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate text-[14.5px] font-semibold">
-            {draft.name || "Seu nome"}
-            {draft.verified && <Icon icon={Tick02Icon} className="size-3.5 rounded-full bg-[#1d9bf0] p-[1px] text-white" strokeWidth={2.6} />}
-          </p>
-          <p className="truncate text-[13px] text-ink-3">@{draft.handle || "seuperfil"}</p>
-        </div>
-        <p className="ml-auto text-[12px] text-ink-3">Assim aparece nos slides</p>
-      </div>
+      </section>
     </div>
   );
 }
@@ -284,14 +291,24 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <section aria-labelledby="st-references-title">
-        <h3 id="st-references-title" className="text-[14px] font-medium">Referências de escrita</h3>
-        <p className="mb-4 mt-1 text-[12.5px] leading-relaxed text-ink-3">Informe o @. A IA analisa a escrita e você escolhe a influência de cada perfil.</p>
+      <section aria-labelledby="st-own-voice-title" className="glass-flat rounded-[14px] p-3.5">
+        <h3 id="st-own-voice-title" className="mb-3 text-[13px] font-semibold">Minha voz</h3>
+        <InstagramMapper handle={draft.handle} onHandleChange={(handle) => patch({ handle })} label="Seu @ no Instagram" buttonLabel="Aprender minha voz" showUsageNote onStart={() => { mappingBaseline.current = draft; }} onMapped={(result) => update((current) => mergeInstagramProfile(current, result, mappingBaseline.current))} evidence={instagramHandle(draft.voiceAnalysis?.handle ?? "") === instagramHandle(draft.handle) ? draft.voiceAnalysis : undefined} />
+        <div className="mt-4 space-y-3">
+          <div><Label htmlFor="st-samples">Ou cole textos seus</Label><Textarea id="st-samples" rows={6} value={draft.samples} onChange={(e) => patch({ samples: e.target.value })} placeholder="Cole 3 a 6 legendas, roteiros ou posts seus." /></div>
+          <Button size="sm" disabled={learning || !draft.samples.trim()} onClick={() => void learnVoice()}>{learning ? <ThinkingOrb state="composing" size={20} theme="dark" aria-hidden /> : <Icon icon={AiMagicIcon} />}{learning ? "Analisando…" : "Aprender com estes textos"}</Button>
+        </div>
+        {draft.voice && <details className="mt-3 rounded-[12px] border border-line p-3"><summary className="control cursor-pointer rounded-[10px] px-3 py-2 text-[13px] text-ink-2">Revisar seu guia de escrita</summary><div className="mt-3"><Label htmlFor="st-voice">Como você escreve</Label><Textarea id="st-voice" rows={5} value={draft.voice} onChange={(e) => patch({ voice: e.target.value })} /></div></details>}
+      </section>
+
+      <section aria-labelledby="st-references-title" className="glass-flat rounded-[14px] p-3.5">
+        <h3 id="st-references-title" className="text-[13px] font-semibold">Referências de escrita</h3>
+        <p className="mb-4 mt-1 text-[12.5px] leading-relaxed text-ink-3">Informe o @. O ChatGPT analisa a escrita e você escolhe a influência de cada perfil.</p>
         <InstagramMapper
           handle={referenceHandle}
           onHandleChange={setReferenceHandle}
           label="@ da referência"
-          buttonLabel={referenceExists ? "Mapear" : "Adicionar"}
+          buttonLabel={referenceExists ? "Atualizar" : "Adicionar"}
           canSubmit={references.length < 5 || referenceExists || references.some(emptyStyleReference)}
           onMapped={(result) => {
             const id = uid();
@@ -303,7 +320,7 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
           {references.map((reference, index) => {
             const change = (changes: Partial<typeof reference>) => update((current) => ({ ...current, styleReferences: (current.styleReferences ?? []).map((item) => item.id === reference.id ? { ...item, ...changes } : item) }));
             return (
-              <article key={reference.id} className="rounded-[14px] border border-line p-3.5">
+              <article key={reference.id} className="well rounded-[14px] p-3.5">
                 <div className="flex items-center gap-2.5">
                   {reference.avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -313,7 +330,7 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
                     <h4 className="truncate text-[13.5px] font-medium">{reference.name || `Referência ${index + 1}`}</h4>
                     <p className="mt-0.5 text-[11.5px] text-ink-3">{reference.guide ? <MappingEvidence sampleCount={reference.sampleCount} imageCount={reference.imageCount} /> : reference.samples.trim() ? "Textos salvos" : "Análise pendente"}</p>
                   </div>
-                  <Button size="icon-sm" variant="ghost" aria-label={`Remover ${reference.name || `referência ${index + 1}`}`} onClick={() => update((current) => ({ ...current, styleReferences: (current.styleReferences ?? []).filter((item) => item.id !== reference.id) }))}><Icon icon={Delete02Icon} /></Button>
+                  <Button size="icon-sm" variant="glass" aria-label={`Remover ${reference.name || `referência ${index + 1}`}`} onClick={() => update((current) => ({ ...current, styleReferences: (current.styleReferences ?? []).filter((item) => item.id !== reference.id) }))}><Icon icon={Delete02Icon} /></Button>
                 </div>
                 <div className="mt-3">
                   <Label htmlFor={`ref-weight-${reference.id}`} hint={`${reference.weight}/5`}>Influência na mistura</Label>
@@ -321,14 +338,14 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
                   <div className="flex justify-between text-[11px] text-ink-3"><span>Sutil</span><span>Forte</span></div>
                 </div>
                 <details className="mt-3 text-[12.5px]">
-                  <summary className="cursor-pointer text-ink-2">Guia e ajustes opcionais</summary>
+                  <summary className="control cursor-pointer rounded-[10px] px-3 py-2 text-ink-2">Guia e ajustes opcionais</summary>
                   <div className="mt-3 space-y-3">
                     <div><Label htmlFor={`ref-name-${reference.id}`}>Nome</Label><Input id={`ref-name-${reference.id}`} value={reference.name} maxLength={100} onChange={(e) => change({ name: e.target.value })} /></div>
-                    {reference.handle && <Button size="sm" variant="ghost" onClick={() => setReferenceHandle(reference.handle!)}>Usar @{reference.handle} no mapeamento</Button>}
+                    {reference.handle && <Button size="sm" variant="glass" onClick={() => setReferenceHandle(reference.handle!)}>Usar @{reference.handle} no mapeamento</Button>}
                     {reference.guide && <div><Label htmlFor={`ref-guide-${reference.id}`}>Guia de escrita</Label><Textarea id={`ref-guide-${reference.id}`} rows={5} maxLength={1800} value={reference.guide} onChange={(e) => change({ guide: e.target.value })} /></div>}
                     <div><Label htmlFor={`ref-focus-${reference.id}`} hint="Opcional">O que aproveitar</Label><Input id={`ref-focus-${reference.id}`} value={reference.focus} maxLength={500} onChange={(e) => change({ focus: e.target.value })} placeholder="Ganchos, ritmo, humor…" /></div>
                     <details>
-                      <summary className="cursor-pointer text-ink-3">Textos de exemplo · opcional</summary>
+                      <summary className="control cursor-pointer rounded-[10px] px-3 py-2 text-ink-3">Textos de exemplo · opcional</summary>
                       <div className="mt-3"><Label htmlFor={`ref-samples-${reference.id}`}>Amostra coletada ou textos seus</Label><Textarea id={`ref-samples-${reference.id}`} rows={4} maxLength={4000} value={reference.samples} onChange={(e) => change({ samples: e.target.value })} placeholder="Acrescente exemplos se quiser refinar o guia." /></div>
                     </details>
                   </div>
@@ -339,18 +356,8 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
         </div>
       </section>
 
-      <section aria-labelledby="st-own-voice-title" className="border-t border-line pt-5">
-        <h3 id="st-own-voice-title" className="mb-3 text-[14px] font-medium">Sua escrita</h3>
-        <InstagramMapper handle={draft.handle} onHandleChange={(handle) => patch({ handle })} label="Seu @ no Instagram" onStart={() => { mappingBaseline.current = draft; }} onMapped={(result) => update((current) => mergeInstagramProfile(current, result, mappingBaseline.current))} evidence={instagramHandle(draft.voiceAnalysis?.handle ?? "") === instagramHandle(draft.handle) ? draft.voiceAnalysis : undefined} />
-        <div className="mt-4 space-y-3">
-          <div><Label htmlFor="st-samples">Ou cole textos seus</Label><Textarea id="st-samples" rows={6} value={draft.samples} onChange={(e) => patch({ samples: e.target.value })} placeholder="Cole 3 a 6 legendas, roteiros ou posts seus." /></div>
-          <Button size="sm" disabled={learning || !draft.samples.trim()} onClick={() => void learnVoice()}>{learning ? <ThinkingOrb state="composing" size={20} theme="dark" aria-hidden /> : <Icon icon={AiMagicIcon} />}{learning ? "Analisando…" : "Aprender minha voz"}</Button>
-        </div>
-        {draft.voice && <details className="mt-3 rounded-[12px] border border-line p-3"><summary className="cursor-pointer text-[13px] text-ink-2">Revisar seu guia de escrita</summary><div className="mt-3"><Label htmlFor="st-voice">Como você escreve</Label><Textarea id="st-voice" rows={5} value={draft.voice} onChange={(e) => patch({ voice: e.target.value })} /></div></details>}
-      </section>
-
-      <details className="rounded-[14px] border border-line p-3.5">
-        <summary className="cursor-pointer text-[13px] font-medium">Seus gostos e ajustes <span className="font-normal text-ink-3">· opcional</span></summary>
+      <details className="glass-flat rounded-[14px] p-3.5">
+        <summary className="control cursor-pointer rounded-[10px] px-3 py-2 text-[13px] font-semibold">Seus gostos e ajustes <span className="font-normal text-ink-3">· opcional</span></summary>
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><Label htmlFor="st-about">Sobre o que você fala</Label><Input id="st-about" value={draft.about} onChange={(e) => patch({ about: e.target.value })} placeholder="IA aplicada, marketing…" /></div>
@@ -360,7 +367,7 @@ function VoiceTab({ draft, patch, update }: ProfileProps) {
           <div><Label htmlFor="st-preferences">Do que você gosta — e o que evita?</Label><Textarea id="st-preferences" rows={3} value={draft.preferences ?? ""} maxLength={1200} onChange={(e) => patch({ preferences: e.target.value })} placeholder="Exemplos práticos, humor seco. Sem tom de guru ou frases prontas." /></div>
           <div><Label htmlFor="st-cta">Chamada final preferida</Label><Input id="st-cta" value={draft.cta} onChange={(e) => patch({ cta: e.target.value })} placeholder="Salva e me segue para mais…" /></div>
           {!draft.voice && <div><Label htmlFor="st-voice-manual">Guia de escrita manual</Label><Textarea id="st-voice-manual" rows={4} value={draft.voice} onChange={(e) => patch({ voice: e.target.value })} placeholder="Seu tom, ritmo e vocabulário." /></div>}
-          <Button size="sm" variant="ghost" disabled={references.length >= 5} onClick={() => update((current) => ({ ...current, styleReferences: [...(current.styleReferences ?? []), { id: uid(), name: "Referência manual", focus: "", samples: "", weight: 3 }].slice(0, 5) }))}><Icon icon={PlusSignIcon} />Adicionar referência manual</Button>
+          <Button size="sm" variant="glass" disabled={references.length >= 5} onClick={() => update((current) => ({ ...current, styleReferences: [...(current.styleReferences ?? []), { id: uid(), name: "Referência manual", focus: "", samples: "", weight: 3 }].slice(0, 5) }))}><Icon icon={PlusSignIcon} />Adicionar referência manual</Button>
         </div>
       </details>
     </div>
@@ -416,9 +423,9 @@ function WritingTab({ writing: w, patch }: { writing: WritingSettings; patch: (p
             ]}
           />
         </Choice>
-        <Choice label="Número de slides">
+        <Choice label="Número de cards">
           <Segmented
-            label="Número de slides"
+            label="Número de cards"
             size="sm"
             className="w-full"
             value={w.slides}
@@ -431,46 +438,61 @@ function WritingTab({ writing: w, patch }: { writing: WritingSettings; patch: (p
           />
         </Choice>
       </div>
-      <div>
+      <div className="glass-flat rounded-[14px] p-3.5">
+        <Toggle checked={w.method} onChange={(method) => patch({ method })} label="Método editorial" describedBy="st-method-hint" />
+        <p id="st-method-hint" className="mt-1 text-[12.5px] leading-relaxed text-ink-3">
+          Apura o assunto, testa dez capas e revisa o texto antes de entregar. Leva mais tempo.
+        </p>
+      </div>
+      <div className="glass-flat rounded-[14px] p-3.5">
+        <Toggle checked={w.pictures !== false} onChange={(pictures) => patch({ pictures })} label="Gerar imagens" describedBy="st-pictures-hint" />
+        <p id="st-pictures-hint" className="mt-1 text-[12.5px] leading-relaxed text-ink-3">
+          Depois do texto, o ChatGPT cria a imagem da capa e de até dois cards. Usa a geração de imagens da sua conta.
+        </p>
+      </div>
+      <div className="glass-flat rounded-[14px] p-3.5">
         <Label htmlFor="st-avoid" hint="Separe por vírgula">
           Nunca usar
         </Label>
         <Input id="st-avoid" value={w.avoid} onChange={(e) => patch({ avoid: e.target.value })} placeholder="incrível, game changer, alavancar…" />
       </div>
-      <div>
-        <Label
-          htmlFor="st-instructions"
-          hint={
-            custom ? (
-              <button onClick={() => patch({ instructions: "" })} className="text-[12.5px] font-medium text-ink-2 transition-colors hover:text-ink">
-                Restaurar padrão
-              </button>
-            ) : (
-              "Padrão do Arrasta"
-            )
-          }
-        >
-          Instruções do redator (system prompt)
-        </Label>
-        <Textarea
-          id="st-instructions"
-          rows={11}
-          value={instructions}
-          onChange={(e) => patch({ instructions: e.target.value.trim() === DEFAULT_INSTRUCTIONS ? "" : e.target.value })}
-          className="font-mono text-[12.5px] leading-relaxed"
-        />
-        <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">
-          Vale para criar, recriar e ajustar. O formato da resposta (o JSON dos slides) fica fora daqui, para nada quebrar.
-        </p>
-      </div>
+      <details className="glass-flat rounded-[14px] p-3.5">
+        <summary className="control cursor-pointer rounded-[10px] px-3 py-2 text-[13px] font-semibold">Avançado</summary>
+        <div className="mt-3">
+          <Label
+            htmlFor="st-instructions"
+            hint={
+              custom ? (
+                <button onClick={() => patch({ instructions: "" })} className="chip-key">
+                  Restaurar padrão
+                </button>
+              ) : (
+                "Padrão do Arrasta"
+              )
+            }
+          >
+            Instruções de escrita
+          </Label>
+          <Textarea
+            id="st-instructions"
+            rows={11}
+            value={instructions}
+            onChange={(e) => patch({ instructions: e.target.value.trim() === DEFAULT_INSTRUCTIONS ? "" : e.target.value })}
+            className="font-mono text-[12.5px] leading-relaxed"
+          />
+          <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">
+            Vale para criar, recriar e ajustar os textos dos carrosséis.
+          </p>
+        </div>
+      </details>
     </div>
   );
 }
 
 function Choice({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
-      <p className="mb-1.5 text-[12.5px] font-medium text-ink-2">{label}</p>
+    <div className="glass-flat min-w-0 rounded-[14px] p-3.5">
+      <p className="mb-2 text-[13px] font-semibold text-ink-2">{label}</p>
       {children}
     </div>
   );
@@ -506,29 +528,18 @@ function FormatsTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section>
-        <p className="mb-2.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">Já vêm no Arrasta</p>
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {builtin.map((f) => (
-            <li key={f.id} className="glass-flat rounded-[14px] px-3.5 py-3">
-              <p className="text-[14px] font-medium">{f.name}</p>
-              <p className="mt-0.5 text-[12.5px] leading-snug text-ink-3">{f.description}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">Seus formatos</p>
+      <section className="glass-flat rounded-[14px] p-3.5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[13px] font-semibold text-ink-3">Seus formatos</p>
           <div className="flex gap-1.5">
-            <Button size="sm" onClick={() => setCreating((v) => !v)}>
+            <Button size="sm" aria-expanded={creating} aria-controls="st-create-format" onClick={() => setCreating((v) => !v)}>
               <Icon icon={PlusSignIcon} />
               Criar formato
             </Button>
           </div>
         </div>
         {creating && (
-          <div className="glass-flat mb-3 flex flex-col gap-3 rounded-[14px] p-3.5">
+          <div id="st-create-format" className="well mb-3 flex flex-col gap-3 rounded-[14px] p-3.5">
             <div>
               <Label htmlFor="fmt-name">Nome</Label>
               <Input id="fmt-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Antes e depois" />
@@ -544,10 +555,10 @@ function FormatsTab() {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
+              <Button size="sm" variant="glass" onClick={() => setCreating(false)}>
                 Cancelar
               </Button>
-              <Button size="sm" variant="primary" onClick={create} disabled={!name.trim() || prompt.trim().length < 20}>
+              <Button size="sm" variant="lit" onClick={create} disabled={!name.trim() || prompt.trim().length < 20}>
                 Salvar formato
               </Button>
             </div>
@@ -556,10 +567,10 @@ function FormatsTab() {
         {own.length ? (
           <ul className="flex flex-col gap-1.5">
             {own.map((f) => (
-              <li key={f.id} className="glass-flat flex items-center gap-2.5 rounded-[12px] py-2 pl-3.5 pr-1.5">
+              <li key={f.id} className="well flex items-center gap-2.5 rounded-[12px] p-3.5">
                 <span className="min-w-0 flex-1 truncate text-[13.5px]">{f.name}</span>
-                <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-[11px] text-ink-3">Seu</span>
-                <button onClick={() => remove(f.id)} className="grid size-8 place-items-center rounded-[9px] text-ink-3 transition-colors hover:bg-red-500/15 hover:text-red-300" aria-label={`Excluir o formato ${f.name}`}>
+                <span className="seal">Seu</span>
+                <button onClick={() => remove(f.id)} className="key size-8 rounded-[9px] hover:text-red-300" aria-label={`Excluir o formato ${f.name}`}>
                   <Icon icon={Delete02Icon} className="size-4" />
                 </button>
               </li>
@@ -572,6 +583,17 @@ function FormatsTab() {
             </p>
           )
         )}
+      </section>
+      <section className="glass-flat rounded-[14px] p-3.5">
+        <p className="mb-2.5 text-[13px] font-semibold text-ink-3">Já vêm no Arrasta</p>
+        <ul className="divide-y divide-line">
+          {builtin.map((f) => (
+            <li key={f.id} className="py-3 first:pt-0 last:pb-0">
+              <p className="text-[14px] font-medium">{f.name}</p>
+              <p className="mt-0.5 truncate text-[13px] text-ink-3" title={f.description}>{f.description}</p>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );
@@ -600,9 +622,9 @@ function AccountTab() {
 
   if (!auth?.connected) {
     return (
-      <div className="flex flex-col items-start gap-3">
-        <p className="text-[14px] leading-relaxed text-ink-2">Entre com sua conta do ChatGPT para o Arrasta ler e escrever. Usa o seu plano, sem chave de API.</p>
-        <Button variant="primary" onClick={() => setLoginOpen(true)}>
+      <div className="glass-flat flex flex-col items-start gap-3 rounded-[14px] p-3.5">
+        <p className="text-[14px] leading-relaxed text-ink-2">Entre com sua conta do ChatGPT para o Arrasta ler e escrever. Usa o seu plano do ChatGPT.</p>
+        <Button variant="lit" onClick={() => setLoginOpen(true)}>
           Entrar com ChatGPT
         </Button>
       </div>
@@ -612,32 +634,32 @@ function AccountTab() {
   const plan = planLabel(auth.plan);
   return (
     <div className="flex flex-col gap-6">
-      <div className="glass-flat flex items-center gap-3 rounded-[16px] p-4">
-        <span className="grid size-10 place-items-center rounded-full bg-white/[0.08]">
-          <Icon icon={ChatGptIcon} className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-medium">{auth.email ?? "Conta conectada"}</p>
-          <p className="text-[12.5px] text-ink-3">
-            {auth.mode === "system" ? "Conta do Codex deste computador" : "Conectado com o ChatGPT"}
+      <div className="glass-flat flex flex-col items-start gap-3 rounded-[14px] p-3.5">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white/[0.08]">
+            <Icon icon={ChatGptIcon} className="size-5" />
+          </span>
+          <p className="text-[13px] text-ink-3">
+            {auth.mode === "system" ? "Conta do ChatGPT deste computador" : "Conectado com o ChatGPT"}
             {plan ? ` · ${plan}` : ""}
           </p>
         </div>
+        <p className="w-full break-all text-[14px] font-medium">{auth.email ?? "Conta conectada"}</p>
         <Button
           size="sm"
-          variant="ghost"
+          variant="glass"
           onClick={async () => {
             await api.authAction("logout");
             await refreshAuth();
           }}
         >
           <Icon icon={Logout01Icon} />
-          {auth.mode === "system" ? "Parar de usar" : "Sair"}
+          Sair
         </Button>
       </div>
 
-      <section>
-        <p className="mb-2.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">Ritmo</p>
+      <section className="glass-flat rounded-[14px] p-3.5">
+        <p className="mb-2.5 text-[13px] font-semibold text-ink-3">Ritmo</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {EFFORTS.map((e) => {
             const active = (settings?.effort ?? "low") === e.value;
@@ -646,7 +668,7 @@ function AccountTab() {
                 key={e.value}
                 onClick={() => save({ effort: e.value })}
                 aria-pressed={active}
-                className={cn("rounded-[14px] border p-3 text-left transition-colors", active ? "selected" : "border-white/[0.08] hover:border-white/[0.16]")}
+                className={cn("rounded-[14px] p-3 text-left transition-colors", active ? "selected" : "control")}
               >
                 <p className="text-[14px] font-medium">{e.label}</p>
                 <p className="mt-0.5 text-[12.5px] leading-snug text-ink-3">{e.hint}</p>
@@ -657,8 +679,8 @@ function AccountTab() {
       </section>
 
       {auth.models.length > 0 && (
-        <section>
-          <p className="mb-2.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">Modelo</p>
+        <section className="glass-flat rounded-[14px] p-3.5">
+          <p className="mb-2.5 text-[13px] font-semibold text-ink-3">Modelo</p>
           <div className="flex flex-col gap-1">
             {[{ slug: "", name: "Padrão do ChatGPT" }, ...auth.models].map((m) => {
               const active = (settings?.model ?? "") === m.slug;
@@ -666,7 +688,8 @@ function AccountTab() {
                 <button
                   key={m.slug || "padrao"}
                   onClick={() => save({ model: m.slug || null })}
-                  className={cn("flex h-10 items-center justify-between rounded-[11px] px-3 text-left text-[13.5px] transition-colors", active ? "bg-white/[0.08] text-ink" : "text-ink-2 hover:bg-white/[0.05] hover:text-ink")}
+                  aria-pressed={active}
+                  className={cn("flex min-h-10 items-center justify-between gap-2 rounded-[11px] px-3 py-2 text-left text-[13.5px] transition-colors", active ? "selected text-ink" : "control text-ink-2 hover:text-ink")}
                 >
                   {m.name}
                   {active && <Icon icon={Tick02Icon} className="size-4" />}

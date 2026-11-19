@@ -17,7 +17,7 @@ export function MappingEvidence({ sampleCount = 0, imageCount = 0, reused = fals
 
 /** Uma submissão lê o perfil e analisa a escrita. Digitar nunca dispara a IA. */
 export function InstagramMapper({
-  handle, onHandleChange, onMapped, onStart, label = "@ no Instagram", buttonLabel = "Mapear", buttonVariant = "glass", evidence, disabled = false, canSubmit = true,
+  handle, onHandleChange, onMapped, onStart, label = "@ no Instagram", buttonLabel = "Mapear", buttonVariant = "glass", evidence, disabled = false, canSubmit = true, showUsageNote = false,
 }: {
   handle: string;
   onHandleChange: (handle: string) => void;
@@ -29,6 +29,7 @@ export function InstagramMapper({
   evidence?: Evidence;
   disabled?: boolean;
   canSubmit?: boolean;
+  showUsageNote?: boolean;
 }) {
   const id = useId();
   const auth = useApp((state) => state.auth);
@@ -90,9 +91,9 @@ export function InstagramMapper({
           <span className="text-[14px] text-ink-3" aria-hidden>@</span>
           <input id={id} value={handle} onChange={(event) => { onHandleChange(event.target.value.replace(/^@+/, "").replace(/\s/g, "")); setError(""); setResult(null); pending.current = null; }} disabled={busy || disabled} autoCapitalize="none" autoComplete="off" spellCheck={false} maxLength={30} placeholder="seuperfil" aria-invalid={Boolean(error)} aria-describedby={`${id}-status`} className="h-full min-w-0 flex-1 bg-transparent px-1 text-[14px] outline-none placeholder:text-ink-3 disabled:opacity-50" />
         </div>
-        <Button type="submit" variant={buttonVariant} size="sm" disabled={busy || disabled || !canSubmit} className="h-10">{busy ? "Mapeando…" : mapped ? "Atualizar" : buttonLabel}</Button>
+        <Button type="submit" variant={buttonVariant} size="sm" disabled={busy || disabled || !canSubmit} className="h-10">{busy ? "Analisando…" : buttonLabel}</Button>
       </form>
-      <p className="mt-2 text-[12px] leading-relaxed text-ink-3">Até 6 legendas e 4 imagens · uma análise por mapeamento. Guias salvos são reutilizados.</p>
+      {showUsageNote && <p className="mt-2 text-[13px] leading-relaxed text-ink-3">Até 6 legendas e 4 imagens · uma análise por mapeamento. Guias salvos são reutilizados.</p>}
       <div id={`${id}-status`} role={error ? "alert" : "status"} aria-live="polite" className={`mt-2 text-[12px] leading-relaxed ${error ? "text-red-300" : "text-ink-3"}`}>
         {busy ? <span className="flex items-center gap-2"><ThinkingOrb state="composing" size={20} theme="dark" aria-hidden />{auth?.connected ? "Lendo perfil e analisando a escrita…" : "Lendo perfil público…"}</span> : error || (visibleResult?.analysis.status === "ready" ? <MappingEvidence {...visibleResult.analysis} /> : visibleResult ? visibleResult.analysis.message || visibleResult.notice : evidence?.analyzedAt ? <MappingEvidence {...evidence} /> : null)}
       </div>

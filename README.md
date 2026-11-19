@@ -78,6 +78,10 @@ Cole um link acessível do Instagram, YouTube, X ou de um site. Você também po
 
 ![Tela inicial atual do Arrasta AI, com entrada por link, texto ou prints e o guia de primeiros passos.](docs/imagens/inicio.png)
 
+### Um método editorial por trás de cada carrossel
+
+Por padrão, cada carrossel passa por um método completo, em qualquer nicho: apura o assunto, testa 10 capas, monta a estrutura, escreve e revisa o texto antes de entregar. O método inteiro está na pasta [`metodo/`](metodo/), em arquivos que você pode ler e mudar. Para escrever sem ele, desligue em **Ajustes > Escrita**.
+
 ### Instagram e referências
 
 Use seu @, exemplos de textos seus e perfis de referência para configurar a escrita. Escolha o que quer aproveitar de cada referência e ajuste sua influência, seu público e suas preferências.
@@ -99,7 +103,7 @@ Clique no texto para escrever e formatar. Troque fonte, cor, fundo, imagem e pos
 
 </details>
 
-### O mesmo conteúdo, nove visuais
+### O mesmo conteúdo, vários visuais
 
 Os modelos mudam o visual do carrossel inteiro. Personalize fontes, cores e fundos. Escolha também um formato de conteúdo pronto ou escreva suas próprias instruções.
 

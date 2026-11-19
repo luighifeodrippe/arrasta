@@ -24,6 +24,7 @@ export async function PUT(request: Request) {
     if (w.emojis && ["nunca", "poucos", "livre"].includes(w.emojis)) next.emojis = w.emojis;
     if (w.slides && ["poucos", "medio", "muitos"].includes(w.slides)) next.slides = w.slides;
     if (typeof w.avoid === "string") next.avoid = w.avoid.slice(0, 1000);
+    if (typeof w.method === "boolean") next.method = w.method;
     clean.writing = defaultWriting(next);
   }
   return Response.json({ settings: await saveSettings(clean) });

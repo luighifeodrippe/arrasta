@@ -53,7 +53,7 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
     setWritingSeen(readFlag(WRITING_KEY));
   }, []);
 
-  if (!mounted || !auth || !profile || dismissed) return null;
+  if (!mounted || !auth || !profile || dismissed || hasProjects) return null;
 
   const steps = [
     {
@@ -100,7 +100,7 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
             writeFlag(DONE_KEY);
             setDismissed(true);
           }}
-          className="shrink-0 rounded-md py-1 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
+          className="chip-key"
         >
           Pular guia
         </button>
@@ -142,13 +142,14 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                         <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{step.text}</p>
                         <div className="mt-[14px] flex flex-wrap items-center gap-2">
                           {step.id === "chatgpt" && (
-                            <Button variant="lit" size="sm" onClick={() => setLoginOpen(true)}>
+                            <Button variant="glass" size="sm" onClick={() => setLoginOpen(true)}>
                               Entrar com ChatGPT
                             </Button>
                           )}
                           {step.id === "voice" && <div className="w-full space-y-2">
                             <InstagramMapper
-                              buttonVariant="lit"
+                              buttonLabel="Aprender minha voz"
+                              showUsageNote
                               handle={handle ?? profile.handle}
                               onHandleChange={setHandle}
                               onStart={() => { mappingBaseline.current = useApp.getState().profile; }}
@@ -162,14 +163,14 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                               }}
                             />
                             <div className="flex flex-wrap items-center gap-2">
-                              <Button size="sm" variant="glass" className="home-pill h-9 rounded-full px-4 text-[14px]" onClick={() => openSettings("voz")}>Colar meus textos</Button>
-                              <Button size="sm" variant="ghost" className="h-9" onClick={() => { writeFlag(SKIP_VOICE_KEY); setSkipVoice(true); }}>Agora não</Button>
+                              <Button size="sm" variant="glass" onClick={() => openSettings("voz")}>Colar meus textos</Button>
+                              <Button size="sm" variant="glass" onClick={() => { writeFlag(SKIP_VOICE_KEY); setSkipVoice(true); }}>Agora não</Button>
                             </div>
                           </div>}
                           {step.id === "writing" && (
                             <>
                               <Button
-                                variant="lit"
+                                variant="glass"
                                 size="sm"
                                 onClick={() => {
                                   openSettings("voz");
@@ -181,7 +182,7 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                               </Button>
                               <Button
                                 size="sm"
-                                variant="ghost"
+                                variant="glass"
                                 className="h-9"
                                 onClick={() => {
                                   writeFlag(WRITING_KEY);
@@ -193,7 +194,7 @@ export function Onboarding({ hasProjects, onPaste }: { hasProjects: boolean; onP
                             </>
                           )}
                           {step.id === "link" && (
-                            <Button variant="lit" size="sm" onClick={onPaste}>
+                            <Button variant="glass" size="sm" onClick={onPaste}>
                               Começar
                             </Button>
                           )}

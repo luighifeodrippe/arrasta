@@ -1,7 +1,7 @@
 "use client";
 
 import { BubbleChatIcon, FavouriteIcon, Image02Icon, LinkSquare02Icon, PlayIcon, RepeatIcon } from "@hugeicons/core-free-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useEditor } from "@/lib/client/editor-store";
 import { REMIX_LEVELS } from "@/lib/defaults";
 import type { RemixLevel } from "@/lib/types";
@@ -22,7 +22,7 @@ function LevelPicker({ value, onChange, keepText }: { value: RemixLevel; onChang
     <div>
       <Label>Quanto mudar</Label>
       <Segmented label="Quanto mudar" size="sm" className="w-full" value={value} onChange={onChange} options={levels.map((l) => ({ value: l.id, label: l.name }))} />
-      <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">{REMIX_LEVELS.find((l) => l.id === value)?.hint}</p>
+      <p className="panel-note mt-2">{REMIX_LEVELS.find((l) => l.id === value)?.hint}</p>
     </div>
   );
 }
@@ -35,9 +35,27 @@ export function SourcePanel() {
   const [instructions, setInstructions] = useState("");
   const [formatId, setFormatId] = useState<string | null>(project.source?.formatId ?? null);
   const source = project.source;
+  // Recriar troca todos os cards: o primeiro toque avisa, o segundo faz.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  const again = (run: () => void) => {
+    if (project.slides.length && !armed) return setArmed(true);
+    setArmed(false);
+    run();
+  };
+  const cardCount = project.slides.length;
+  const replaceLabel = `Trocar os ${cardCount} cards`;
 
   if (!source) {
-    return <p className="px-5 py-8 text-[13.5px] leading-relaxed text-ink-3">Este carrossel começou em branco. Use a conversa com o ChatGPT, embaixo do palco, para pedir ajuda.</p>;
+    return (
+      <Section title="Origem">
+        <p className="panel-note">Este carrossel começou em branco. Peça ao ChatGPT Work o que quiser criar.</p>
+      </Section>
+    );
   }
 
   if (source.kind === "idea") {
@@ -48,11 +66,11 @@ export function SourcePanel() {
           <FormatPicker value={formatId} onChange={setFormatId} align="start" />
           <div>
             <Label htmlFor="again">Ajuste para a próxima versão</Label>
-            <Input id="again" value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Ex.: mais provocativo, 7 slides" />
+            <Input id="again" value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Ex.: mais provocativo, 7 cards" />
           </div>
-          <Button variant="primary" className="w-full" disabled={running} onClick={() => generate("create", { instructions, formatId: formatId ?? "" })}>
+          <Button variant={armed ? "danger" : "glass"} className="w-full" disabled={running} onClick={() => again(() => void generate("create", { instructions, formatId: formatId ?? "" }))}>
             <Icon icon={RepeatIcon} />
-            Gerar de novo
+            {armed ? replaceLabel : "Gerar de novo"}
           </Button>
         </Section>
         <Analysis />
@@ -66,6 +84,7 @@ export function SourcePanel() {
 
   return (
     <div>
+      <Analysis />
       <Section title={source.kind === "x" ? "Post do X" : isVideo ? "Vídeo do YouTube" : source.kind === "web" ? "Página" : source.kind === "upload" ? "Prints" : "Original"}>
         {isVideo && source.media[0] && (
           <a href={source.url ?? undefined} target="_blank" rel="noreferrer" className="group relative block overflow-hidden rounded-[12px] border border-white/10" aria-label="Abrir o vídeo no YouTube">
@@ -118,8 +137,8 @@ export function SourcePanel() {
           )}
         </div>
         {isLink && source.text && (
-          <div className="rounded-[12px] bg-white/[0.04] px-3.5 py-3">
-            {isVideo && <p className="mb-1 text-[11.5px] font-medium uppercase tracking-[0.08em] text-ink-3">Transcrição</p>}
+          <div className="well rounded-[12px] px-3 py-2.5">
+            {isVideo && <p className="mb-1 text-[12px] font-medium text-ink-2">Transcrição</p>}
             <p className="line-clamp-6 whitespace-pre-line text-[12.5px] leading-relaxed text-ink-2">
               {isVideo ? (source.text.split("Transcrição do vídeo:\n")[1] ?? source.text) : source.text}
             </p>
@@ -127,20 +146,18 @@ export function SourcePanel() {
         )}
       </Section>
 
-      <Analysis />
-
       <Section title="Recriar de novo">
         <LevelPicker value={level} onChange={setLevel} keepText={!isLink} />
         {isLink && <FormatPicker value={formatId} onChange={setFormatId} align="start" />}
         <Input value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Ajuste (opcional): foque em fotógrafos…" aria-label="Ajuste" />
-        <Button variant="primary" className="w-full" disabled={running} onClick={() => generate("remix", { level, instructions, formatId: isLink ? (formatId ?? "") : undefined })}>
+        <Button variant={armed ? "danger" : "glass"} className="w-full" disabled={running} onClick={() => again(() => void generate("remix", { level, instructions, formatId: isLink ? (formatId ?? "") : undefined }))}>
           <Icon icon={RepeatIcon} />
-          {project.slides.length ? "Recriar de novo" : "Recriar na minha voz"}
+          {armed ? replaceLabel : cardCount ? "Recriar de novo" : "Recriar na minha voz"}
         </Button>
       </Section>
 
       {source.slides.length > 0 && (
-        <Section title={`Slides originais · ${source.slides.length}`}>
+        <Section title={`Cards originais · ${source.slides.length}`}>
           <div className="flex flex-col gap-3">
             {source.slides.map((s, i) => (
               <div key={s.src} className="flex gap-3">

@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeft01Icon, ArrowRight01Icon, Bookmark02Icon, BubbleChatIcon, Cancel01Icon, FavouriteIcon, MoreHorizontalIcon, SentIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, Bookmark02Icon, BubbleChatIcon, Cancel01Icon, Copy01Icon, Download04Icon, FavouriteIcon, GridViewIcon, MoreHorizontalIcon, SentIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { Dialog as D, Tabs as T } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
 import { identityOf, useApp } from "@/lib/client/app-store";
 import { useEditor } from "@/lib/client/editor-store";
 import { SLIDE_W, slideHeight } from "@/lib/defaults";
 import { SlideCanvas, SlideFrame } from "../slide/SlideCanvas";
+import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
 import { fullCaption } from "./CaptionPanel";
 import { Icon } from "@/components/ui/icon";
@@ -86,6 +87,13 @@ export function PreviewDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     } else setCurrent(next);
   };
 
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(caption);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+
   const avatar = identity.avatar ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={identity.avatar} alt="" className="size-7 shrink-0 rounded-full object-cover" />
@@ -106,15 +114,15 @@ export function PreviewDialog({ open, onOpenChange }: { open: boolean; onOpenCha
             <D.Close className="-mr-1 -mt-1 grid size-9 shrink-0 place-items-center rounded-lg text-ink-2 hover:bg-white/[0.07] hover:text-ink" aria-label="Fechar prévia"><Icon icon={Cancel01Icon} className="size-[18px]" /></D.Close>
           </div>
           <T.Root value={surface} onValueChange={(value) => setSurface(value as Surface)} className="flex min-h-0 flex-col">
-            <T.List aria-label="Local da publicação" className="mx-5 grid shrink-0 grid-cols-4 gap-1 rounded-xl bg-white/[0.05] p-1">
-              {SURFACES.map((item) => <T.Trigger key={item.id} value={item.id} className="rounded-lg px-1 py-2 text-[12px] font-medium text-ink-2 hover:text-ink data-[state=active]:bg-white/[0.12] data-[state=active]:text-ink">{item.name}</T.Trigger>)}
+            <T.List aria-label="Local da publicação" className="well mx-5 grid shrink-0 grid-cols-4 gap-1 rounded-[13px] p-1">
+              {SURFACES.map((item) => <T.Trigger key={item.id} value={item.id} className="h-8 rounded-[10px] border border-transparent px-1 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink data-[state=active]:selected data-[state=active]:text-ink">{item.name}</T.Trigger>)}
             </T.List>
             <div ref={bodyRef} className="no-scrollbar min-h-0 overflow-y-auto overscroll-contain px-5 pb-4">
               <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 text-[12px] text-ink-2">
-                <label className="flex min-h-7 cursor-pointer items-center gap-2"><input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} className="size-3.5 accent-[var(--accent)]" />Mostrar áreas de segurança</label>
-                {surface === "explore" && <label className="flex items-center gap-1.5">Recorte<select aria-label="Recorte da miniatura" value={squareCrop ? "1:1" : "3:4"} onChange={(e) => setSquareCrop(e.target.value === "1:1")} className="rounded-md border border-line bg-panel px-1.5 py-1 text-ink"><option value="3:4">3:4</option><option value="1:1">1:1</option></select></label>}
+                <button type="button" className="chip-key" aria-pressed={safe} onClick={() => setSafe(!safe)}><Icon icon={GridViewIcon} className="size-3.5" />Margens do Instagram</button>
+                {surface === "explore" && <label className="flex items-center gap-1.5">Recorte<span className="well flex rounded-full p-0.5">{(["3:4", "1:1"] as const).map((crop) => <button key={crop} type="button" aria-pressed={(crop === "1:1") === squareCrop} onClick={() => setSquareCrop(crop === "1:1")} className={cn("h-7 rounded-full border border-transparent px-2.5 text-[12px] font-medium tabular-nums", (crop === "1:1") === squareCrop ? "selected text-ink" : "text-ink-2 hover:text-ink")}>{crop}</button>)}</span></label>}
               </div>
-              <div className="relative grid place-items-center overflow-hidden rounded-xl bg-black/25" style={{ height: "min(540px, max(250px, calc(100dvh - 330px)))", containerType: "size" }}>
+              <div className="well relative grid place-items-center overflow-hidden rounded-[14px]" style={{ height: "min(540px, max(250px, calc(100dvh - 330px)))", containerType: "size" }}>
                 {surface === "feed" && <T.Content value="feed" className="overflow-hidden rounded-lg bg-black text-white" style={{ width: `min(360px, 100cqw, calc((100cqh - 145px) * ${SLIDE_W / slideHeight(project.design.size)}))` }}>
                   <div className="flex h-11 items-center gap-2 px-3 text-[12px]">{avatar}<span className="min-w-0 truncate font-semibold">{handle}</span><Icon icon={MoreHorizontalIcon} className="ml-auto size-5 shrink-0" /></div>
                   <div className="relative">
@@ -151,15 +159,24 @@ export function PreviewDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                 </T.Content>}
               </div>
               <div className="mt-3 flex items-center justify-between gap-3">
-                <button type="button" onClick={() => go(selected - 1)} disabled={selected === 0} className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-ink-2 hover:bg-white/[0.1] disabled:opacity-30" aria-label="Card anterior"><Icon icon={ArrowLeft01Icon} className="size-4" /></button>
+                <button type="button" onClick={() => go(selected - 1)} disabled={selected === 0} className="key size-9 shrink-0 rounded-full" aria-label="Card anterior"><Icon icon={ArrowLeft01Icon} className="size-4" /></button>
                 <span className="text-[12px] tabular-nums text-ink-2" role="status">Card {selected + 1} de {total}</span>
-                <button type="button" onClick={() => go(selected + 1)} disabled={selected >= total - 1} className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-ink-2 hover:bg-white/[0.1] disabled:opacity-30" aria-label="Próximo card"><Icon icon={ArrowRight01Icon} className="size-4" /></button>
+                <button type="button" onClick={() => go(selected + 1)} disabled={selected >= total - 1} className="key size-9 shrink-0 rounded-full" aria-label="Próximo card"><Icon icon={ArrowRight01Icon} className="size-4" /></button>
               </div>
-              <p className="mt-2 text-[12px] leading-relaxed text-ink-2">{SURFACES.find((item) => item.id === surface)?.hint}</p>
-              {safe && <p className="mt-1 text-[11px] leading-relaxed text-ink-3">As guias não entram no download. Confira o enquadramento final no Instagram.</p>}
-              <details className="mt-4 rounded-xl bg-white/[0.04] px-3 py-2.5"><summary className="cursor-pointer text-[12px] font-medium">Como aproveitar cada card</summary><div className="mt-3"><CarouselTips /></div></details>
+              {surface !== "feed" && <p className="mt-3 text-[12.5px] leading-relaxed text-ink-2">{SURFACES.find((item) => item.id === surface)?.hint}</p>}
+              <details className="glass-flat group/tips mt-3 rounded-[14px] px-3.5 py-3"><summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[13px] font-medium [&::-webkit-details-marker]:hidden">Como aproveitar cada card<Icon icon={ArrowDown01Icon} className="size-4 text-ink-2 transition-transform group-open/tips:rotate-180" /></summary><div className="mt-3"><CarouselTips /></div></details>
             </div>
           </T.Root>
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3.5">
+            <Button variant="glass" size="sm" onClick={copy} disabled={!caption}>
+              <Icon icon={copied ? Tick02Icon : Copy01Icon} />
+              {copied ? "Copiada" : "Copiar legenda"}
+            </Button>
+            <Button variant="lit" size="sm" onClick={() => { onOpenChange(false); window.dispatchEvent(new CustomEvent("arrasta:download-selection")); }}>
+              <Icon icon={Download04Icon} />
+              Baixar
+            </Button>
+          </div>
         </D.Content>
       </D.Portal>
     </D.Root>

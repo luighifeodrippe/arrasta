@@ -17,7 +17,7 @@ const EFFORTS: { value: Effort; label: string }[] = [
 ];
 
 /** Modelo e ritmo do ChatGPT, à mão na conversa (como o seletor do ChatGPT). */
-export function ModelPicker({ compact }: { compact?: boolean }) {
+export function ModelPicker({ compact, className }: { compact?: boolean; className?: string }) {
   const auth = useApp((s) => s.auth);
   const settings = useApp((s) => s.settings);
   const setSettings = useApp((s) => s.setSettings);
@@ -29,7 +29,7 @@ export function ModelPicker({ compact }: { compact?: boolean }) {
       <button
         type="button"
         onClick={() => setLoginOpen(true)}
-        className="mb-1 flex h-10 shrink-0 items-center gap-1.5 rounded-[12px] px-2.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink"
+        className={cn("mb-1 flex h-10 shrink-0 items-center gap-1.5 rounded-[12px] px-2.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink", className)}
       >
         <Icon icon={ChatGptIcon} className="size-[18px]" />
         {!compact && "Entrar"}
@@ -53,7 +53,7 @@ export function ModelPicker({ compact }: { compact?: boolean }) {
         <button
           type="button"
           aria-label={`Modelo: ${model}. Ritmo: ${effort}`}
-          className="mb-1 flex h-10 shrink-0 items-center gap-1.5 rounded-[12px] px-2.5 text-[12.5px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink data-[state=open]:bg-white/[0.1] data-[state=open]:text-ink"
+          className={cn("mb-1 flex h-10 shrink-0 items-center gap-1.5 rounded-[12px] px-2.5 text-[12.5px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink data-[state=open]:bg-white/[0.1] data-[state=open]:text-ink", className)}
         >
           <Icon icon={ChatGptIcon} className="size-[18px]" />
           {!compact && (

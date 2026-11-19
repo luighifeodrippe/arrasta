@@ -11,8 +11,8 @@ const KEY = "arrasta:tour-done";
 const STEPS = [
   {
     target: "stage",
-    title: "Edite direto no slide",
-    text: "Clique no texto de qualquer slide e escreva. Selecione palavras e aperte ⌘B para destacar. Arraste ou cole (⌘V) uma imagem no card.",
+    title: "Edite direto no card",
+    text: "Clique no texto de qualquer card e escreva. Selecione palavras e aperte ⌘B para destacar. Arraste ou cole (⌘V) uma imagem no card.",
   },
   {
     target: "toolbar",
@@ -21,13 +21,13 @@ const STEPS = [
   },
   {
     target: "agent",
-    title: "Peça ao ChatGPT",
-    text: "Escreva o que quer mudar, no carrossel todo ou só no slide escolhido, e escolha o modelo e o ritmo ali do lado. Cada resposta diz o que mudou e dá para desfazer.",
+    title: "Peça ao ChatGPT Work",
+    text: "Escreva o que quer mudar. Clique num card para o pedido valer só para ele, ou solte imagens que eu coloco nos cards. Cada resposta mostra o que mudou e dá para desfazer.",
   },
   {
     target: "export",
     title: "Baixe e poste",
-    text: "Quando gostar, baixe os PNGs e a legenda. Modelos e proporção ficam em Design; as instruções do redator, em Ajustes.",
+    text: "A Revisão, na lateral, mostra o que falta antes de postar. Quando estiver tudo certo, veja a Prévia e baixe os cards e a legenda.",
   },
 ];
 
@@ -107,7 +107,8 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
             bottom = Math.min(bottom, bounds.bottom);
           }
         }
-        if (agent) bottom = Math.min(bottom, agent.top - 16);
+        // Só a barra de pedidos (embaixo, sobre o palco) corta o holofote; o cartão do ChatGPT fica ao lado.
+        if (agent && agent.top > top && agent.left < right && agent.right > left) bottom = Math.min(bottom, agent.top - 16);
       }
       setRect({ top, left, width: Math.max(0, right - left), height: Math.max(0, bottom - top) });
     };
@@ -211,7 +212,7 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
               <Button size="sm" variant="ghost" onClick={finish}>
                 Pular
               </Button>
-              <Button size="sm" variant="primary" onClick={() => (index < STEPS.length - 1 ? setIndex(index + 1) : finish())}>
+              <Button size="sm" variant="lit" onClick={() => (index < STEPS.length - 1 ? setIndex(index + 1) : finish())}>
                 {index < STEPS.length - 1 ? "Próximo" : "Começar"}
               </Button>
             </div>

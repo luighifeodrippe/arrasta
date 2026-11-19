@@ -2,16 +2,21 @@
 
 import { useModKey } from "@/lib/client/shortcut";
 
-import { AiMagicIcon, HighlighterIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, AiMagicIcon, ArrowDown01Icon, HighlighterIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Popover } from "radix-ui";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { toast } from "sonner";
 import { useEditor } from "@/lib/client/editor-store";
 import { SLIDE_KINDS } from "@/lib/defaults";
+import { BODY_WORDS, TITLE_WORDS, words } from "@/lib/review";
+import type { Slide } from "@/lib/types";
 import { cssText, fromDom, toggleEmphasis, toHtml } from "../slide/editing";
 import { cn } from "../ui/cn";
 import { Section } from "../ui/field";
+import { Tip } from "../ui/tooltip";
 import { useEditing, type TextTarget } from "./editing-store";
-import { RewritePopover } from "./Toolbar";
+import { useAgent } from "./agent-store";
+import { useAgentActions } from "./use-agent-actions";
 import { Icon } from "@/components/ui/icon";
 
 /** "#ff3500" + 0.3 → "rgb(255 53 0 / 0.3)". */
@@ -114,105 +119,156 @@ function RichField({
   );
 }
 
-function FieldHeader({ htmlFor, label, onEmphasis, rewrite }: { htmlFor: string; label: string; onEmphasis: () => void; rewrite: React.ReactNode }) {
+/** O tipo do card (capa, lista, final…), num menu pequeno no cabeçalho dele. */
+function KindMenu({ slide }: { slide: Slide }) {
+  const updateSlide = useEditor((s) => s.updateSlide);
+  const [open, setOpen] = useState(false);
+  const name = SLIDE_KINDS.find((kind) => kind.id === slide.kind)?.name ?? "Conteúdo";
   return (
-    <div className="mb-1.5 flex items-center justify-between gap-2">
-      <label htmlFor={htmlFor} className="text-[12.5px] font-medium text-ink-2">
-        {label}
-      </label>
-      <span className="flex items-center gap-0.5">
-        <button
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={onEmphasis}
-          className="flex h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink"
-        >
-          <Icon icon={HighlighterIcon} className="size-3.5" />
-          Destacar
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <button type="button" className="script-kind" aria-label={`Tipo do card: ${name}`}>
+          {name}
+          <Icon icon={ArrowDown01Icon} className="size-3.5" />
         </button>
-        {rewrite}
-      </span>
-    </div>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content align="start" sideOffset={6} className="glass z-50 grid w-[168px] gap-0.5 rounded-[14px] p-1.5 outline-none">
+          {SLIDE_KINDS.map((kind) => (
+            <button
+              key={kind.id}
+              type="button"
+              className="talk"
+              aria-pressed={slide.kind === kind.id}
+              onClick={() => {
+                updateSlide(slide.id, { kind: kind.id });
+                setOpen(false);
+              }}
+            >
+              <span className="flex items-center justify-between gap-2">
+                {kind.name}
+                {slide.kind === kind.id && <Icon icon={Tick02Icon} className="size-4" />}
+              </span>
+            </button>
+          ))}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
-export function SlidePanel() {
+/** Um card do roteiro: o número, o tipo e os dois textos. O card escolhido ganha as ações (destacar, imagem). */
+function ScriptCard({ slide, index, current, accent }: { slide: Slide; index: number; current: boolean; accent: string }) {
   const modKey = useModKey();
+  const select = useEditor((s) => s.select);
+  const updateSlide = useEditor((s) => s.updateSlide);
+  const toggles = useRef<Record<TextTarget, () => void>>({ title: () => undefined, body: () => undefined });
+  const { picture } = useAgentActions();
+  const imaging = useAgent((state) => state.imaging.includes(slide.id));
+  const titleWords = words(slide.title);
+  const bodyWords = slide.kind === "table" ? 0 : words(slide.body);
+  const warning = titleWords > TITLE_WORDS ? `título com ${titleWords} palavras` : bodyWords > BODY_WORDS ? `texto com ${bodyWords} palavras` : "";
+  const pick = () => {
+    if (!current) select(slide.id);
+  };
+
+  return (
+    <section id={`roteiro-${slide.id}`} className="panel-group script-card" data-current={current || undefined} onPointerDownCapture={pick} onFocusCapture={pick}>
+      <div className="panel-group-head">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="script-number">{index + 1}</span>
+          <KindMenu slide={slide} />
+        </div>
+        {warning && (
+          <span className="seal" data-tone="warn">
+            {warning}
+          </span>
+        )}
+      </div>
+      <RichField
+        key={`${slide.id}-title`}
+        id={`slide-title-${slide.id}`}
+        field="title"
+        value={slide.title}
+        onChange={(title) => updateSlide(slide.id, { title }, "title")}
+        accent={accent}
+        placeholder={slide.kind === "stat" ? "73%, R$ 4 mil, 3 em 10…" : "A frase principal do card"}
+        label={`Título do card ${index + 1}`}
+        className="min-h-[44px] text-[14.5px] font-semibold leading-snug"
+        registerToggle={(toggle) => (toggles.current.title = toggle)}
+      />
+      <RichField
+        key={`${slide.id}-body`}
+        id={`slide-body-${slide.id}`}
+        field="body"
+        value={slide.body}
+        onChange={(body) => updateSlide(slide.id, { body }, "body")}
+        accent={accent}
+        placeholder={slide.kind === "table" ? "Item | Valor\nPrimeiro | 10\nSegundo | 20" : slide.kind === "stat" ? "O que esse número significa" : slide.kind === "list" ? "1. Primeiro ponto\n2. Segundo ponto" : "Complemento (opcional)"}
+        label={`Texto do card ${index + 1}`}
+        className="-mt-1 min-h-[62px] text-[13.5px]"
+        registerToggle={(toggle) => (toggles.current.body = toggle)}
+      />
+      {current && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Tip label={`Selecione as palavras e destaque (${modKey}B)`}>
+            <button
+              type="button"
+              className="chip-key"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => (document.activeElement?.id === `slide-body-${slide.id}` ? toggles.current.body() : toggles.current.title())}
+            >
+              <Icon icon={HighlighterIcon} className="size-3.5" />
+              Destacar
+            </button>
+          </Tip>
+          {slide.imageIdea && !slide.image && (
+            <Tip label={`Imagem sugerida: ${slide.imageIdea}`}>
+              <button type="button" className="chip-key" onClick={() => void picture([{ id: slide.id }])} disabled={imaging}>
+                <Icon icon={AiMagicIcon} className="size-3.5" />
+                {imaging ? "Gerando a imagem…" : "Gerar a imagem"}
+              </button>
+            </Tip>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Roteiro: o texto de todos os cards em sequência, para ler a história inteira (gancho, desenvolvimento, chamada)
+ * e mexer em qualquer um sem sair do lugar. Fonte, cor, imagem e fundo de cada card ficam na barra sobre o palco.
+ */
+export function SlidePanel() {
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
-  const updateSlide = useEditor((s) => s.updateSlide);
-  const index = project.slides.findIndex((s) => s.id === selectedId);
-  const slide = project.slides[index];
-  const toggles = useRef<Record<TextTarget, () => void>>({ title: () => undefined, body: () => undefined });
+  const addSlide = useEditor((s) => s.addSlide);
 
-  if (!slide) {
-    return <p className="px-5 py-8 text-[13.5px] text-ink-3">Escolha um slide no palco para editar.</p>;
+  // Escolheu um card no palco: o roteiro mostra o mesmo card.
+  useEffect(() => {
+    if (selectedId) document.getElementById(`roteiro-${selectedId}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selectedId]);
+
+  if (!project.slides.length) {
+    return (
+      <Section title="Roteiro">
+        <p className="panel-note">O texto de cada card aparece aqui, em sequência, assim que o carrossel for criado.</p>
+      </Section>
+    );
   }
-
-  const rewrite = (preset: TextTarget) => (
-    <RewritePopover
-      index={index}
-      preset={preset}
-      align="end"
-      trigger={
-        <button className="flex h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink data-[state=open]:bg-white/[0.1] data-[state=open]:text-ink">
-          <Icon icon={AiMagicIcon} className="size-3.5" />
-          Reescrever
-        </button>
-      }
-    />
-  );
 
   return (
     <div>
-      <Section title={`Slide ${index + 1} de ${project.slides.length}`}>
-        <div className="flex flex-wrap gap-1.5">
-          {SLIDE_KINDS.map((k) => (
-            <button
-              key={k.id}
-              onClick={() => updateSlide(slide.id, { kind: k.id })}
-              className={cn(
-                "h-8 rounded-[10px] border px-3 text-[13px] transition-colors",
-                slide.kind === k.id ? "selected text-ink" : "border-white/[0.08] text-ink-2 hover:border-white/[0.16] hover:text-ink",
-              )}
-            >
-              {k.name}
-            </button>
-          ))}
-        </div>
-        <div>
-          <FieldHeader htmlFor="slide-title" label="Título" onEmphasis={() => toggles.current.title()} rewrite={rewrite("title")} />
-          <RichField
-            key={`${slide.id}-title`}
-            id="slide-title"
-            field="title"
-            value={slide.title}
-            onChange={(title) => updateSlide(slide.id, { title }, "title")}
-            accent={project.design.accent}
-            placeholder="A frase principal do slide"
-            label="Título do slide"
-            className="min-h-[76px] text-[15px] font-medium"
-            registerToggle={(t) => (toggles.current.title = t)}
-          />
-        </div>
-        <div>
-          <FieldHeader htmlFor="slide-body" label="Texto" onEmphasis={() => toggles.current.body()} rewrite={rewrite("body")} />
-          <RichField
-            key={`${slide.id}-body`}
-            id="slide-body"
-            field="body"
-            value={slide.body}
-            onChange={(body) => updateSlide(slide.id, { body }, "body")}
-            accent={project.design.accent}
-            placeholder={slide.kind === "list" ? "1. Primeiro ponto\n2. Segundo ponto" : "Complemento (opcional)"}
-            label="Texto do slide"
-            className="min-h-[124px]"
-            registerToggle={(t) => (toggles.current.body = t)}
-          />
-          <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">
-            Selecione palavras e use {modKey}B para destacar. Em listas, um item por linha. Fonte, cor, alinhamento, imagem e fundo ficam na barra em cima dos slides.
-          </p>
-        </div>
-      </Section>
+      {project.slides.map((slide, index) => (
+        <ScriptCard key={slide.id} slide={slide} index={index} current={slide.id === selectedId} accent={project.design.accent} />
+      ))}
+      <div className="px-2 pb-3">
+        <button type="button" className="chip-key w-full justify-center" onClick={() => addSlide(project.slides[project.slides.length - 1]?.id)}>
+          <Icon icon={Add01Icon} className="size-3.5" />
+          Novo card
+        </button>
+      </div>
     </div>
   );
 }

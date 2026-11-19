@@ -12,8 +12,8 @@ export function SelectionBar({ onDownload }: { onDownload: (ids: string[]) => vo
   const full = useEditor((s) => (s.project?.slides.length ?? 0) >= MAX_SLIDES);
   const item = "flex h-9 shrink-0 items-center gap-1.5 rounded-[9px] px-2.5 text-[13px] text-ink-2 transition-colors hover:bg-white/[0.08] hover:text-ink disabled:opacity-35";
   return (
-    <div role="toolbar" aria-label="Seleção de slides" className="glass no-scrollbar flex h-12 min-w-0 max-w-full items-center overflow-x-auto rounded-[15px] px-1.5">
-      <span role="status" className="shrink-0 px-2.5 text-[13px] text-ink-2 tabular-nums">{selection.length} slides selecionados</span>
+    <div role="toolbar" aria-label="Seleção de cards" className="glass no-scrollbar flex h-12 min-w-0 max-w-full items-center overflow-x-auto rounded-[15px] px-1.5">
+      <span role="status" className="shrink-0 px-2.5 text-[13px] text-ink-2 tabular-nums">{selection.length} cards selecionados</span>
       <span className="mx-1 h-5 w-px shrink-0 bg-white/10" />
       <OrganizeButton ids={selection} />
       <button className={item} disabled={full} onClick={() => useEditor.getState().duplicateSlides(selection)}><Icon icon={Copy01Icon} className="size-4" />Duplicar</button>

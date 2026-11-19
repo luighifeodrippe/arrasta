@@ -152,6 +152,8 @@ interface RunOptions {
   signal?: AbortSignal;
   onEvent?: (event: AgentEvent) => void;
   onUsage?: (usage: CodexUsage) => void;
+  /** O id da conversa no Codex; as imagens que ela gera ficam numa pasta com esse nome. */
+  onThread?: (id: string) => void;
 }
 
 interface ExecItem {
@@ -162,7 +164,7 @@ interface ExecItem {
 }
 
 /** Roda uma tarefa no ChatGPT e devolve o JSON no formato do schema pedido. */
-export async function runCodex<T>({ prompt, schema, images = [], effort, webSearch, disableShell = true, signal, onEvent, onUsage }: RunOptions): Promise<T> {
+export async function runCodex<T>({ prompt, schema, images = [], effort, webSearch, disableShell = true, signal, onEvent, onUsage, onThread }: RunOptions): Promise<T> {
   const settings = await getSettings();
   const { home, args: homeOverrides } = await homeArgs();
   await requireChatGPTAccount(home);
@@ -218,12 +220,13 @@ export async function runCodex<T>({ prompt, schema, images = [], effort, webSear
 
   const handleLine = (line: string) => {
     if (!line.trim()) return;
-    let event: { type: string; item?: ExecItem; error?: { message?: string }; message?: string; usage?: { input_tokens?: number; cached_input_tokens?: number; output_tokens?: number } };
+    let event: { type: string; thread_id?: string; item?: ExecItem; error?: { message?: string }; message?: string; usage?: { input_tokens?: number; cached_input_tokens?: number; output_tokens?: number } };
     try {
       event = JSON.parse(line);
     } catch {
       return;
     }
+    if (event.type === "thread.started" && event.thread_id) onThread?.(event.thread_id);
     if (event.type === "item.completed" && event.item) {
       const item = event.item;
       if (item.type === "agent_message" && item.text) finalText = item.text;
@@ -310,4 +313,18 @@ function lastLine(text: string): string | null {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** As imagens que uma conversa do Codex gerou (a ferramenta de imagem as grava na pasta do login em uso), da mais nova à mais antiga. */
+export async function generatedImages(threadId: string): Promise<string[]> {
+  if (!/^[\w-]+$/.test(threadId)) return [];
+  const { home } = await homeArgs();
+  const dir = path.join(home, "generated_images", threadId);
+  try {
+    const files = (await fs.readdir(dir)).filter((name) => /\.(png|jpe?g|webp)$/i.test(name));
+    const dated = await Promise.all(files.map(async (name) => ({ file: path.join(dir, name), at: (await fs.stat(path.join(dir, name))).mtimeMs })));
+    return dated.sort((a, b) => b.at - a.at).map((entry) => entry.file);
+  } catch {
+    return [];
+  }
 }

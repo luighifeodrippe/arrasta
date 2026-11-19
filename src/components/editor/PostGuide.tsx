@@ -62,7 +62,7 @@ export function PostGuide({ open, onOpenChange, count, caption }: { open: boolea
               Não mostrar mais
             </Button>
             <Button
-              variant="primary"
+              variant="lit"
               disabled={!caption.trim()}
               onClick={async () => {
                 try {

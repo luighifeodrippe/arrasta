@@ -1,10 +1,9 @@
 "use client";
 
 import { identityOf, useApp } from "@/lib/client/app-store";
-import { defaultDesign, makeSlide } from "@/lib/defaults";
+import { defaultDesign, makeSlide, TEMPLATES } from "@/lib/defaults";
 import type { Design, Slide } from "@/lib/types";
 import { SlideCanvas, SlideFrame } from "../slide/SlideCanvas";
-import { Marquee } from "../ui/marquee";
 
 /** Slides de exemplo, um de cada modelo, com o nome e a foto de quem está usando. */
 const DEMO: { design: Partial<Design>; slide: Partial<Slide> }[] = [
@@ -20,23 +19,29 @@ const DEMO: { design: Partial<Design>; slide: Partial<Slide> }[] = [
 
 const SLIDES = DEMO.map((d) => ({ design: defaultDesign({ showCounter: false, ...d.design }), slide: makeSlide(d.slide) }));
 
-export function Showcase() {
+export function Showcase({ onChoose, disabled = false }: { onChoose: (design: Partial<Design>) => void; disabled?: boolean }) {
   const profile = useApp((s) => s.profile);
   const identity = identityOf(profile);
   return (
-    <div aria-hidden className="relative left-1/2 w-screen -translate-x-1/2 [mask-image:linear-gradient(to_right,transparent,black_var(--home-margin),black_calc(100%_-_var(--home-margin)),transparent)]">
-      <Marquee pauseOnHover repeat={2} className="[--duration:70s] [--gap:20px] p-0 pb-4">
+    <div className="relative left-1/2 w-screen -translate-x-1/2">
+      <div role="group" aria-label="Escolher um modelo" className="flex gap-5 overflow-x-auto px-(--home-margin) pb-4 pt-1">
         {SLIDES.map(({ design, slide }, i) => (
-          <div
+          <button
             key={i}
-            className="w-[150px] shrink-0 overflow-hidden rounded-[14px] shadow-[0_0_0_1px_rgb(255_255_255/0.1),0_24px_50px_-24px_rgb(0_0_0/0.9)] sm:w-[196px]"
+            type="button"
+            disabled={disabled}
+            onClick={() => onChoose(DEMO[i].design)}
+            className="control w-[150px] shrink-0 rounded-[18px] p-1 text-left transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-45 sm:w-[196px]"
           >
-            <SlideFrame>
-              <SlideCanvas slide={slide} index={0} total={7} design={design} identity={identity} />
-            </SlideFrame>
-          </div>
+            <div aria-hidden className="pointer-events-none overflow-hidden rounded-[14px]">
+              <SlideFrame>
+                <SlideCanvas slide={slide} index={0} total={7} design={design} identity={identity} />
+              </SlideFrame>
+            </div>
+            <span className="block px-2 py-2 text-[13px] font-medium">Usar {TEMPLATES.find((template) => template.id === design.template)?.name} · {design.theme === "light" ? "claro" : "escuro"}</span>
+          </button>
         ))}
-      </Marquee>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { CarouselFormat, CarouselSource, Design, FontId, Profile, Project, RemixLevel, Slide, SlideImage, SlideKind, SlideSize, TemplateId, TextAlign, TextStyle, WritingSettings } from "./types";
+import type { CarouselFormat, CarouselSource, Design, FontId, Profile, Project, RemixLevel, Slide, SlideImage, SlideKind, SlideSize, TemplateId, TextAlign, TextStyle, WritingSettings, MancheteStyle } from "./types";
 
 export const APP_NAME = "Arrasta AI";
 
@@ -32,6 +32,7 @@ export function fitRowSlideWidth(width: number, available: number, count: number
 
 export const TEMPLATES: { id: TemplateId; name: string; hint: string }[] = [
   { id: "perfil", name: "Perfil", hint: "Estilo post de texto, com foto e @" },
+  { id: "manchete", name: "Manchete", hint: "Título forte e cards alternando claro e escuro" },
   { id: "editorial", name: "Editorial", hint: "Título grande e destaque em cor" },
   { id: "foto", name: "Foto", hint: "Imagem de fundo com texto por cima" },
   { id: "minimal", name: "Minimal", hint: "Centralizado, limpo" },
@@ -52,11 +53,63 @@ export const FONTS: { id: FontId; name: string; cssVar: string; weight: number }
   { id: "playfair", name: "Playfair", cssVar: "--font-playfair", weight: 700 },
   { id: "dmserif", name: "DM Serif", cssVar: "--font-dmserif", weight: 400 },
   { id: "anton", name: "Anton", cssVar: "--font-anton", weight: 400 },
+  { id: "barlow", name: "Barlow Condensed", cssVar: "--font-barlow", weight: 900 },
+  { id: "jakarta", name: "Plus Jakarta Sans", cssVar: "--font-jakarta", weight: 800 },
+  { id: "dmsans", name: "DM Sans", cssVar: "--font-dmsans", weight: 700 },
   { id: "caveat", name: "Caveat", cssVar: "--font-caveat", weight: 700 },
 ];
 
 /** Fontes com serifa: os modelos ajustam espaçamento e itálico para elas. */
 export const SERIF_FONTS: FontId[] = ["instrument", "playfair", "dmserif"];
+
+export const MANCHETE_STYLES: { id: MancheteStyle; name: string; hint: string; title: FontId; body: FontId; weight: number }[] = [
+  { id: "moderno", name: "Moderno", hint: "Letra condensada e mais variação de cards", title: "barlow", body: "jakarta", weight: 900 },
+  { id: "classico", name: "Clássico", hint: "Serifa nos títulos e tom de jornal", title: "playfair", body: "dmsans", weight: 900 },
+  { id: "minimalista", name: "Minimal", hint: "Quase tudo claro, com mais espaço", title: "jakarta", body: "jakarta", weight: 800 },
+  { id: "bold", name: "Bold", hint: "Quase tudo escuro, com títulos maiores", title: "space", body: "space", weight: 700 },
+];
+
+/** A letra que aparece no card: a escolhida, ou a do estilo no Manchete, ou a do carrossel. */
+export function effectiveFont(design: Design, field: "title" | "body"): FontId {
+  const own = field === "title" ? design.titleFont : design.bodyFont;
+  if (own) return own;
+  if (design.template !== "manchete") return design.font;
+  const style = MANCHETE_STYLES.find((item) => item.id === design.style) ?? MANCHETE_STYLES[0];
+  return field === "title" ? style.title : style.body;
+}
+
+/** No Manchete as letras vêm do estilo: escolher uma precisa valer por cima dele. */
+export function fontChoice(design: Design, id: FontId): Partial<Design> {
+  return design.template === "manchete" ? { font: id, titleFont: id, bodyFont: id } : { font: id, titleFont: null, bodyFont: null };
+}
+
+export const NICHE_PALETTES: { id: string; name: string; accent: string; light: string; dark: string }[] = [
+  { id: "marketing", name: "Marketing", accent: "#E8421A", light: "#F7F4F1", dark: "#0F0D0C" },
+  { id: "imobiliario", name: "Imobiliário", accent: "#C9A84C", light: "#F5F0E8", dark: "#0D1B2A" },
+  { id: "fitness", name: "Fitness", accent: "#E94560", light: "#F0F4F8", dark: "#16213E" },
+  { id: "gastronomia", name: "Gastronomia", accent: "#D4A574", light: "#FDF6ED", dark: "#1A1008" },
+  { id: "moda", name: "Moda", accent: "#C4956A", light: "#FAF5F0", dark: "#0A0A0A" },
+  { id: "educacao", name: "Educação", accent: "#34B3A0", light: "#F0FAF7", dark: "#0D2137" },
+  { id: "tech", name: "Tecnologia", accent: "#64FFDA", light: "#F0F4F8", dark: "#020C1B" },
+  { id: "juridico", name: "Advocacia", accent: "#B8860B", light: "#F5F1E8", dark: "#0D0D1A" },
+  { id: "contabil", name: "Contabilidade", accent: "#3A7D44", light: "#F2F6F3", dark: "#0B132B" },
+  { id: "ecommerce", name: "E-commerce", accent: "#FF6B35", light: "#FFF8F2", dark: "#0D0D0D" },
+  { id: "pet", name: "Pet", accent: "#E17055", light: "#FFF5F0", dark: "#1A1A1A" },
+];
+
+/** Pontos de partida para quem chega sem ideia; [SEU NICHO] vira o assunto do perfil. */
+export const IDEA_PROMPTS = [
+  "Pesquise a tendência mais quente de [SEU NICHO] dessa semana e crie um carrossel completo",
+  "Carrossel contraintuitivo: por que a estratégia que todo mundo de [SEU NICHO] está usando pode estar errada",
+  "Carrossel sobre como a IA está mudando [SEU NICHO], com dados reais e fontes",
+  "Carrossel Case: como [marca referência] conseguiu [resultado]. O que podemos replicar",
+  "Carrossel Previsão: 3 sinais de que [SEU NICHO] vai mudar nos próximos 12 meses",
+  "Carrossel sobre o dado mais surpreendente de [SEU NICHO] que saiu recentemente",
+  "Comparando como era [SEU NICHO] há 5 anos e como é hoje, com dados",
+  "Pesquise algo que [nicho internacional] já faz e [SEU NICHO] no Brasil ainda não",
+  "Por que os profissionais mais bem pagos de [SEU NICHO] estão fazendo [comportamento inesperado]",
+  "A morte de [prática antiga do nicho] e o que está substituindo",
+];
 
 export const ACCENTS = ["#ff3500", "#1d9bf0", "#7c3aed", "#16a34a", "#eab308", "#ec4899", "#0a0a0a", "#ffffff"];
 
@@ -64,6 +117,8 @@ export const SLIDE_KINDS: { id: SlideKind; name: string }[] = [
   { id: "cover", name: "Capa" },
   { id: "content", name: "Conteúdo" },
   { id: "list", name: "Lista" },
+  { id: "stat", name: "Número" },
+  { id: "table", name: "Tabela" },
   { id: "quote", name: "Citação" },
   { id: "cta", name: "Final" },
 ];
@@ -75,6 +130,8 @@ export function textStyle(partial?: Partial<TextStyle> | null): TextStyle {
 export function defaultDesign(partial?: Partial<Design>): Design {
   return {
     template: "perfil",
+    style: "moderno",
+    surfaces: null,
     theme: "light",
     font: "inter",
     accent: "#ff3500",
@@ -157,9 +214,11 @@ export function makeSlide(partial?: Partial<Slide>): Slide {
   return {
     id: uid(),
     kind: "content",
+    tag: "",
     title: "",
     body: "",
     image: null,
+    imageIdea: "",
     background: null,
     valign: null,
     gap: null,
@@ -360,6 +419,66 @@ Regras:
 - Use só ferramentas que estão no conteúdo. Se o pedido não trouxer a lista, escolha só ferramentas reais e conhecidas, sem preço, plano ou número de que você não tenha certeza.
 - Sem emojis e sem jargão técnico. Benefício na frente, recurso depois.`,
   },
+  {
+    id: "tendencia",
+    name: "Tendência",
+    description: "Interpreta algo que está acontecendo agora e mostra o que isso muda.",
+    origin: "builtin",
+    createdAt: "2026-11-02T00:00:00.000Z",
+    method: true,
+    prompt: `Tendência interpretada: um fato recente lido com ponto de vista.
+
+Arco dos slides internos: hook → contexto → mudança → impacto → ação → chamada.
+
+Regras:
+- Comece pelo fato, com nome, data e fonte; nunca por uma introdução.
+- Separe o que é fato do que é leitura sua.`,
+  },
+  {
+    id: "contra",
+    name: "Tese contraintuitiva",
+    description: "Desafia uma crença popular do nicho e põe uma explicação melhor no lugar.",
+    origin: "builtin",
+    createdAt: "2026-11-02T00:00:00.000Z",
+    method: true,
+    prompt: `Tese contraintuitiva: pega o que quase todo mundo repete e mostra o que está errado ou incompleto.
+
+Arco dos slides internos: crença comum → dados que desafiam → verdade → novo modelo → aplicação → chamada.
+
+Regras:
+- Mostre que você entende por que a crença parece certa antes de derrubá-la.
+- Só contrarie com fato ou caso concreto, nunca com frase de efeito.`,
+  },
+  {
+    id: "caso",
+    name: "Case",
+    description: "Mostra o que alguém fez, como fez e o que dá para replicar.",
+    origin: "builtin",
+    createdAt: "2026-11-02T00:00:00.000Z",
+    method: true,
+    prompt: `Case: conta o resultado de uma pessoa ou empresa e tira daí um princípio que dá para copiar.
+
+Arco dos slides internos: resultado → quem fez → como → princípio → como replicar → chamada.
+
+Regras:
+- Abra pelo resultado, com nome e número.
+- Conte só o que está no conteúdo ou na fonte; o que for inferência sua, diga que é.`,
+  },
+  {
+    id: "futuro",
+    name: "Previsão",
+    description: "Junta sinais de hoje e mostra para onde o assunto está indo.",
+    origin: "builtin",
+    createdAt: "2026-11-02T00:00:00.000Z",
+    method: true,
+    prompt: `Previsão: junta sinais pequenos de hoje e mostra para onde o assunto vai.
+
+Arco dos slides internos: sinais fracos → padrão → direção → quem se posiciona ganha → ações → chamada.
+
+Regras:
+- Cada sinal é um fato com fonte, não uma opinião.
+- Deixe claro que é aposta: "tudo indica", "aposto", nunca "vai acontecer" como certeza.`,
+  },
 ];
 
 /** As instruções padrão do redator. A pessoa pode reescrever tudo em Configurações → Escrita. */
@@ -372,5 +491,5 @@ export const DEFAULT_INSTRUCTIONS = `Você é o redator de carrosséis de quem v
 - Não invente dados, nomes ou números que não estão no conteúdo.`;
 
 export function defaultWriting(partial?: Partial<WritingSettings>): WritingSettings {
-  return { instructions: "", language: "pt-BR", length: "medio", emojis: "poucos", slides: "medio", avoid: "", ...partial };
+  return { instructions: "", language: "pt-BR", length: "medio", emojis: "poucos", slides: "medio", avoid: "", method: true, pictures: true, ...partial };
 }

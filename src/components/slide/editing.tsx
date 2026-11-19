@@ -13,7 +13,7 @@ import type { BlockId, Slide, SlideImage } from "@/lib/types";
  */
 export interface EditBinding {
   moveBlock: (block: BlockId, offset: Point | null) => void;
-  setText: (field: "title" | "body", value: string) => void;
+  setText: (field: "title" | "body" | "tag", value: string) => void;
   setImage: (patch: Partial<SlideImage>) => void;
   /** Escala do card na tela, para converter o arrasto do mouse em pixels do slide. */
   scale: number;
@@ -350,6 +350,7 @@ export function EditableText({
   onChange,
   onEnter,
   onBackspaceEmpty,
+  onBlur,
   moveProps,
 }: {
   as?: "p" | "h2" | "span";
@@ -366,6 +367,7 @@ export function EditableText({
   onChange: (value: string) => void;
   onEnter?: () => void;
   onBackspaceEmpty?: () => void;
+  onBlur?: () => void;
   moveProps?: MovableRoot;
 }) {
   const ref = useRef<HTMLElement | null>(null);
@@ -406,7 +408,7 @@ export function EditableText({
     "data-ghost": ghost,
     "data-editable": "",
     className: `arrasta-editable ${moveProps?.className ?? ""}`,
-    style: { ...style, whiteSpace: "pre-wrap", outline: "none", cursor: "text", minWidth: "1ch", ...moveProps?.style },
+    style: { ...style, whiteSpace: style.whiteSpace === "nowrap" ? "nowrap" : "pre-wrap", outline: "none", cursor: "text", minWidth: "1ch", ...moveProps?.style },
     dangerouslySetInnerHTML: { __html: html },
     onFocus: () => {
       focused.current = true;
@@ -416,6 +418,7 @@ export function EditableText({
       focused.current = false;
       edit.onEditing(null, null);
       if (ref.current) setHtml(toHtml(fromDom(ref.current), emphasis, mark));
+      onBlur?.();
     },
     onInput: emit,
     onPointerDown: (event: React.PointerEvent) => event.stopPropagation(),

@@ -18,13 +18,15 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   return <textarea ref={ref} className={cn("field w-full resize-none px-3.5 py-2.5 text-[14px] leading-relaxed", className)} {...props} />;
 });
 
-export function Section({ title, children, action }: { title: ReactNode; children: ReactNode; action?: ReactNode }) {
+/** Um grupo do painel: vidro fumê com o título em cima e, à direita, o que se faz com o grupo. */
+export function Section({ title, children, action, note }: { title: ReactNode; children: ReactNode; action?: ReactNode; note?: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 border-b border-line px-5 py-5 last:border-b-0">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-ink-3">{title}</h3>
+    <section className="panel-group">
+      <div className="panel-group-head">
+        <h3>{title}</h3>
         {action}
       </div>
+      {note && <p className="panel-note -mt-2">{note}</p>}
       {children}
     </section>
   );

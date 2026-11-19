@@ -12,6 +12,8 @@ interface StageViewState {
   layout: Layout;
   guides: boolean;
   cardWidth: number;
+  /** Altura guardada embaixo do palco: a da barra de pedidos, ou uma margem quando o ChatGPT está no cartão ao lado. */
+  barSpace: number;
   fitRequest: number;
   setZoom: (zoom: number) => void;
   zoomIn: () => void;
@@ -26,6 +28,7 @@ export const useStageView = create<StageViewState>((set) => ({
   layout: "row",
   guides: false,
   cardWidth: 0,
+  barSpace: 112,
   fitRequest: 0,
   setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
   zoomIn: () => set((s) => ({ zoom: stepZoom(s.zoom, 1) })),

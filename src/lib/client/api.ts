@@ -1,4 +1,4 @@
-import type { AgentEvent, AuthStatus, CarouselFormat, InstagramImportResult, ModelOption, Profile, Project, Settings } from "../types";
+import type { AgentEvent, AuthStatus, CarouselFormat, InstagramImportResult, ModelOption, Profile, Project, Settings, Slide } from "../types";
 
 async function json<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
@@ -49,6 +49,9 @@ export const api = {
   },
   createFormat: (body: { name: string; prompt: string }) => fetch("/api/formats", post(body)).then(json<CarouselFormat>),
   deleteFormat: (id: string) => fetch(`/api/formats/${id}`, { method: "DELETE" }).then(json<{ ok: boolean }>),
+  /** Gera a imagem de um card com a conta do ChatGPT (leva perto de um minuto). */
+  generateImage: (body: { projectId: string; slide: Pick<Slide, "kind" | "title" | "body" | "imageIdea">; cover: boolean; idea?: string }, signal?: AbortSignal) =>
+    fetch("/api/image", { ...post(body), signal }).then(json<{ url: string; note: string }>),
   upload: (scope: string, file: File) => {
     const form = new FormData();
     form.append("scope", scope);

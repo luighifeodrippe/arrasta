@@ -1,6 +1,6 @@
 "use client";
 
-import { Download04Icon } from "@hugeicons/core-free-icons";
+import { Download04Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import { identityOf, useApp } from "@/lib/client/app-store";
 import { slideHeight } from "@/lib/defaults";
@@ -67,7 +67,7 @@ export function ExportDialog({
             <p role="status" className="text-[13px] text-ink-2 tabular-nums">
               {count} de {project.slides.length} selecionados
             </p>
-            <Button variant="primary" size="sm" disabled={count === 0} onClick={() => { onExport(indices); onOpenChange(false); }}>
+            <Button variant="lit" size="sm" disabled={count === 0} onClick={() => { onExport(indices); onOpenChange(false); }}>
               <Icon icon={Download04Icon} />
               {count === 1 ? "Baixar PNG" : "Baixar ZIP"}
             </Button>
@@ -75,9 +75,9 @@ export function ExportDialog({
         }
       >
         <div className="mb-4 flex flex-wrap gap-1.5" aria-label="Seleção de cards">
-          <Button size="sm" variant={allSelected ? "glass" : "ghost"} aria-pressed={allSelected} onClick={() => setSelection(new Set(project.slides.map((slide) => slide.id)))}>Todos</Button>
-          <Button size="sm" variant={count === 0 ? "glass" : "ghost"} aria-pressed={count === 0} onClick={() => setSelection(new Set())}>Nenhum</Button>
-          {currentIndex >= 0 && <Button size="sm" variant="ghost" onClick={() => setSelection(new Set([project.slides[currentIndex].id]))}>Só o atual ({currentIndex + 1})</Button>}
+          <button type="button" className="chip-key" aria-pressed={allSelected} onClick={() => setSelection(new Set(project.slides.map((slide) => slide.id)))}>Todos</button>
+          <button type="button" className="chip-key" aria-pressed={count === 0} onClick={() => setSelection(new Set())}>Nenhum</button>
+          {currentIndex >= 0 && <button type="button" className="chip-key" aria-pressed={count === 1 && indices[0] === currentIndex} onClick={() => setSelection(new Set([project.slides[currentIndex].id]))}>Só o card {currentIndex + 1}</button>}
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="group" aria-label="Cards para baixar">
           {project.slides.map((slide, index) => {
@@ -87,8 +87,8 @@ export function ExportDialog({
               <label
                 key={slide.id}
                 className={cn(
-                  "min-w-0 cursor-pointer overflow-hidden rounded-[12px] border p-1.5 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-white",
-                  checked ? "border-white/60 bg-white/[0.06]" : "border-line hover:border-line-strong",
+                  "well min-w-0 cursor-pointer overflow-hidden rounded-[12px] p-1.5 transition-shadow has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-white",
+                  checked ? "shadow-[0_0_0_2px_rgb(255_255_255/0.85)]" : "opacity-60 hover:opacity-100",
                 )}
               >
                 <div className="pointer-events-none overflow-hidden rounded-[6px]" aria-hidden>
@@ -97,7 +97,10 @@ export function ExportDialog({
                   </SlideFrame>
                 </div>
                 <span className="flex min-h-9 items-center gap-2 px-1 pt-1 text-[12px]">
-                  <input type="checkbox" checked={checked} onChange={() => toggle(slide.id)} aria-label={`Card ${index + 1}${title ? `: ${title}` : ""}`} className="size-4 shrink-0 accent-white" />
+                  <input type="checkbox" checked={checked} onChange={() => toggle(slide.id)} aria-label={`Card ${index + 1}${title ? `: ${title}` : ""}`} className="sr-only" />
+                  <span aria-hidden className={cn("grid size-[18px] shrink-0 place-items-center rounded-[6px]", checked ? "bg-white text-black" : "bg-black/40 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.22)]")}>
+                    {checked && <Icon icon={Tick02Icon} className="size-3.5" strokeWidth={2.6} />}
+                  </span>
                   <span className="shrink-0 tabular-nums">{String(index + 1).padStart(2, "0")}</span>
                   <span className="truncate text-ink-2">{title || "Sem título"}</span>
                 </span>

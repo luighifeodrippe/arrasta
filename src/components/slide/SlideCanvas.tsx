@@ -1,10 +1,12 @@
 "use client";
 
 import { createElement, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { fontVar, fontWeight, SERIF_FONTS, SLIDE_W, slideHeight } from "@/lib/defaults";
+import { effectiveFont, fontVar, fontWeight, MANCHETE_STYLES, SERIF_FONTS, SLIDE_W, slideHeight } from "@/lib/defaults";
 import type { Design, FontId, Slide, SlideImage, SlideSize, TextAlign, TextStyle } from "@/lib/types";
 import { EditableText, ImageLayer, Movable, MovementProvider, type EditBinding } from "./editing";
 import { joinItems, listItems, rich } from "./rich-text";
+import { coverTitleSize, mancheteColors, mancheteTone } from "@/lib/manchete";
+import { parseTable } from "@/lib/table";
 import { joinNumberedTitle, joinPromptBody, parsePromptBody, splitNumberedTitle, type PromptBody } from "@/lib/prompt-block";
 
 export interface SlideIdentity {
@@ -20,12 +22,18 @@ interface Palette {
   muted: string;
   line: string;
   dark: boolean;
+  /** Cor do destaque quando a cor da marca não se lê neste fundo. */
+  em?: string;
 }
 
 const PALETTES: Record<Design["template"], { light: Palette; dark: Palette }> = {
   perfil: {
     light: { bg: "#ffffff", fg: "#0f1419", muted: "#536471", line: "rgb(15 20 25 / 0.1)", dark: false },
     dark: { bg: "#000000", fg: "#e7e9ea", muted: "#71767b", line: "rgb(255 255 255 / 0.14)", dark: true },
+  },
+  manchete: {
+    light: { bg: "#F7F4F1", fg: "#0F0D0C", muted: "rgb(15 13 12 / 0.64)", line: "rgb(15 13 12 / 0.1)", dark: false },
+    dark: { bg: "#0F0D0C", fg: "#FFFFFF", muted: "rgb(255 255 255 / 0.62)", line: "rgb(255 255 255 / 0.1)", dark: true },
   },
   editorial: {
     light: { bg: "#f3efe7", fg: "#141414", muted: "#5b5750", line: "rgb(0 0 0 / 0.12)", dark: false },
@@ -72,6 +80,7 @@ function alpha(hex: string, a: number): string {
 /** Cada modelo destaca do seu jeito: cor, brilho de neon, marca-texto ou itálico. */
 function emphasisFor(design: Design, colors: Palette): CSSProperties {
   const accent = accentOn(design.accent, colors);
+  if (design.template === "manchete") return { color: accent };
   if (design.template === "neon") return { color: design.accent, textShadow: `0 0 18px ${alpha(design.accent, 0.75)}, 0 0 52px ${alpha(design.accent, 0.45)}` };
   if (design.template === "notas") {
     const mark = alpha(design.accent, colors.dark ? 0.5 : 0.42);
@@ -99,9 +108,26 @@ function luminance(hex: string): number | null {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-function palette(design: Design, slide: Slide): Palette {
-  const base = PALETTES[design.template][design.theme];
+function contrast(a: string, b: string): number {
+  const [x, y] = [luminance(a) ?? 0, luminance(b) ?? 0];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+function palette(design: Design, slide: Slide, index: number, total: number): Palette {
+  const manchete = design.template === "manchete";
+  const tone = manchete ? mancheteTone(index, total, design.theme, design.style) : design.theme;
   const custom = slide.background ?? design.background;
+  const tones = mancheteColors(design.accent, design.surfaces);
+  if (tone === "accent" && !custom) {
+    const fg = (luminance(design.accent) ?? 0) < 0.32 ? "#FFFFFF" : tones.darkBg;
+    return { bg: tones.gradient, fg, muted: alpha(fg, 0.92), line: alpha(fg, 0.2), dark: fg === "#FFFFFF", em: fg };
+  }
+  const base = PALETTES[design.template][tone === "accent" ? "dark" : tone];
+  if (manchete && !custom) {
+    const bg = base.dark ? tones.darkBg : tones.lightBg;
+    // Dourado e amarelo somem no fundo claro: ali o destaque desce para o tom escuro da marca.
+    return { ...base, bg, fg: base.dark ? base.fg : tones.darkBg, em: !base.dark && contrast(design.accent, bg) < 3 ? tones.dark : undefined };
+  }
   if (!custom || design.template === "foto") return base;
   const lum = luminance(custom);
   if (lum === null) return { ...base, bg: custom };
@@ -137,6 +163,18 @@ function useAutoFit(deps: unknown[]) {
     let value = 1;
     root.dataset.measuringBlocks = "";
     root.style.setProperty("--fit", "1");
+    const titleBox = root.querySelector<HTMLElement>("[data-fit-title]");
+    const title = titleBox?.firstElementChild as HTMLElement | null;
+    root.style.setProperty("--title-fit", "1");
+    if (title && titleBox) {
+      let titleFit = 1;
+      const titleOverflows = () => title.scrollWidth > titleBox.clientWidth + 1 ||
+        (titleBox.dataset.fitTitle === "cover" && title.scrollHeight > parseFloat(getComputedStyle(title).lineHeight) * 5 + 2);
+      while (titleOverflows() && titleFit > 0.02) {
+        titleFit = Math.max(0.02, titleFit - 0.02);
+        root.style.setProperty("--title-fit", String(titleFit));
+      }
+    }
     const overflows = () => content.scrollHeight > height + 2 || content.scrollWidth > width + 2;
     while (overflows() && value > 0.5) {
       value = Math.round((value - 0.04) * 100) / 100;
@@ -176,12 +214,15 @@ export function SlideCanvas({
   /** Só o card selecionado no palco recebe: texto e imagem viram editáveis. */
   edit?: EditBinding;
 }) {
-  const backdrop = slide.image && (design.template === "foto" || slide.image.mode === "background") ? slide.image : null;
-  const colors = backdrop && design.template !== "foto" ? OVER_PHOTO : palette(design, slide);
+  const mancheteCover = design.template === "manchete" && index === 0;
+  const backdrop = slide.image && (design.template === "foto" || slide.image.mode === "background" || mancheteCover) ? (mancheteCover ? { ...slide.image, fit: "cover" as const } : slide.image) : null;
+  const colors = backdrop && design.template !== "foto" ? OVER_PHOTO : palette(design, slide, index, total);
   const { boxRef, contentRef, fit } = useAutoFit([
     slide.title,
     slide.body,
     slide.kind,
+    index,
+    total,
     slide.valign,
     slide.titleStyle,
     slide.bodyStyle,
@@ -240,9 +281,10 @@ export function SlideCanvas({
     colors,
     boxRef,
     contentRef,
-    weight: fontWeight(title.font),
+    weight: design.template === "manchete" && !design.titleFont ? mancheteStyle(design).weight : fontWeight(title.font),
     serif: SERIF_FONTS.includes(title.font),
     emphasis: emphasisFor(design, colors),
+    bodyEmphasis: design.template === "manchete" ? { color: colors.fg, fontWeight: 700 } : emphasisFor(design, colors),
     edit,
     inlineImage: backdrop ? null : slide.image,
     backdrop: Boolean(backdrop),
@@ -259,12 +301,17 @@ export function SlideCanvas({
               position: "absolute",
               inset: 0,
               pointerEvents: "none",
-              background: "linear-gradient(to top, rgb(0 0 0 / 0.86) 0%, rgb(0 0 0 / 0.55) 45%, rgb(0 0 0 / 0.3) 100%)",
+              background: mancheteCover
+                ? "linear-gradient(to bottom, rgb(0 0 0 / 0.35) 0%, rgb(0 0 0 / 0.08) 25%, rgb(0 0 0 / 0.15) 40%, rgb(0 0 0 / 0.65) 55%, rgb(0 0 0 / 0.92) 75%, rgb(0 0 0 / 0.99) 100%)"
+                : design.template === "manchete"
+                ? "linear-gradient(to bottom, rgb(4 4 8 / 0.8) 0%, rgb(4 4 8 / 0.7) 30%, rgb(4 4 8 / 0.75) 60%, rgb(4 4 8 / 0.9) 100%)"
+                : "linear-gradient(to top, rgb(0 0 0 / 0.86) 0%, rgb(0 0 0 / 0.55) 45%, rgb(0 0 0 / 0.3) 100%)",
             }}
           />
         </>
       )}
       {design.template === "perfil" && <PerfilTemplate {...ctx} />}
+      {design.template === "manchete" && <MancheteTemplate {...ctx} />}
       {design.template === "editorial" && <EditorialTemplate {...ctx} />}
       {design.template === "foto" && <FotoTemplate {...ctx} />}
       {design.template === "minimal" && <MinimalTemplate {...ctx} />}
@@ -279,6 +326,7 @@ export function SlideCanvas({
 
 /** Um destaque branco em fundo branco some: nesse caso o destaque usa a cor do texto. */
 function accentOn(accent: string, colors: Palette): string {
+  if (colors.em) return colors.em;
   const a = luminance(accent);
   const b = luminance(colors.bg);
   if (a === null || b === null) return accent;
@@ -295,6 +343,10 @@ interface Resolved {
   font: FontId;
 }
 
+function mancheteStyle(design: Design) {
+  return MANCHETE_STYLES.find((style) => style.id === design.style) ?? MANCHETE_STYLES[0];
+}
+
 /** O ajuste do slide vale primeiro; depois o do carrossel; depois o do modelo. */
 function resolve(field: "title" | "body", slide: Slide, design: Design): Resolved {
   const own: TextStyle = field === "title" ? slide.titleStyle : slide.bodyStyle;
@@ -305,7 +357,7 @@ function resolve(field: "title" | "body", slide: Slide, design: Design): Resolve
     size: own.size ?? base.size ?? 1,
     leading: own.leading ?? base.leading ?? 1,
     tracking: own.tracking ?? base.tracking ?? 0,
-    font: (field === "title" ? design.titleFont : design.bodyFont) ?? design.font,
+    font: effectiveFont(design, field),
   };
 }
 
@@ -331,6 +383,8 @@ interface TemplateProps {
   contentRef: React.RefObject<HTMLDivElement | null>;
   weight: number;
   emphasis: CSSProperties;
+  /** Destaque dentro do texto: no Manchete, o título leva a cor e o texto leva peso. */
+  bodyEmphasis: CSSProperties;
   edit?: EditBinding;
   /** A fonte do título é serifada (muda espaçamento e itálico em alguns modelos). */
   serif: boolean;
@@ -362,7 +416,7 @@ function Field({
   movable = true,
 }: {
   ctx: TemplateProps;
-  field: "title" | "body";
+  field: "title" | "body" | "tag";
   as?: "p" | "h2";
   style: CSSProperties;
   placeholder: string;
@@ -371,22 +425,34 @@ function Field({
   movable?: boolean;
 }) {
   const { edit } = ctx;
-  const own = field === "title" ? ctx.titleStyle : ctx.bodyStyle;
-  const piece = !edit ? (value ? createElement(as, { style: { margin: 0, ...style, ...own } }, rich(value, ctx.emphasis)) : null) : (
+  const stat = field === "title" && ctx.slide.kind === "stat";
+  const cover = field === "title" && ctx.design.template === "manchete" && ctx.index === 0;
+  if (stat) {
+    // O valor permanece inteiro; só a fonte diminui quando falta largura.
+    value = ctx.slide.title;
+    onChange = undefined;
+    style = { ...style, fontSize: "calc(300px * var(--s) * var(--fit) * var(--ts) * var(--title-fit, 1))", color: accentOn(ctx.design.accent, ctx.colors), lineHeight: tl(1), whiteSpace: "nowrap", textTransform: ctx.design.template === "manchete" ? "uppercase" : "none", textWrap: "nowrap" };
+  } else if (cover) {
+    style = { ...style, fontSize: `calc(${coverTitleSize(ctx.slide.title)}px * var(--s) * var(--fit) * var(--ts) * var(--title-fit, 1))` };
+  }
+  const own = field === "title" ? ctx.titleStyle : field === "body" ? ctx.bodyStyle : {};
+  const emphasis = field === "title" ? ctx.emphasis : ctx.bodyEmphasis;
+  const piece = !edit ? (value ? createElement(as, { style: { margin: 0, ...style, ...own } }, rich(value, emphasis)) : null) : (
     <EditableText
       as={as}
       field={field}
-      label={field === "title" ? "Título do slide" : "Texto do slide"}
-      ghost={field === "title" ? "+ Título" : "+ Texto"}
+      label={field === "title" ? "Título do slide" : field === "tag" ? "Etiqueta do slide" : "Texto do slide"}
+      ghost={field === "title" ? "+ Título" : field === "tag" ? "+ Etiqueta" : "+ Texto"}
       value={value}
       style={{ margin: 0, ...INTERACTIVE, ...style, ...own }}
-      emphasis={ctx.emphasis}
+      emphasis={emphasis}
       placeholder={placeholder}
       edit={edit}
       onChange={onChange ?? ((next) => edit.setText(field, next))}
     />
   );
-  return movable && piece ? <Movable slide={ctx.slide} edit={edit} block={field}>{piece}</Movable> : piece;
+  const block = movable && piece && field !== "tag" ? <Movable slide={ctx.slide} edit={edit} block={field}>{piece}</Movable> : piece;
+  return stat || cover ? <div data-fit-title={stat ? "stat" : "cover"} style={{ width: "100%", minWidth: 0 }}>{block}</div> : block;
 }
 
 /** Foto, nome e @ do card: no slide escolhido, um clique abre o editor de perfil. */
@@ -499,7 +565,7 @@ function InlineImage({ ctx, radius, style }: { ctx: TemplateProps; radius: numbe
 }
 
 /** Marcador dos itens de lista: bolinha cheia, contorno de neon, caixa de checklist ou numeral de revista. */
-type Marker = "filled" | "outline" | "check" | "numeral";
+type Marker = "filled" | "outline" | "check" | "numeral" | "arrow" | "card";
 
 function ItemMarker({ kind, label, size, accent }: { kind: Marker; label: string; size: number; accent: string }) {
   const box = `calc(${size * 1.3}px * var(--s) * var(--fit) * var(--bs))`;
@@ -510,6 +576,8 @@ function ItemMarker({ kind, label, size, accent }: { kind: Marker; label: string
     fontWeight: 700,
     fontSize: fb(size * 0.62),
   };
+  if (kind === "card") return <span aria-hidden style={{ ...base, marginTop: `calc(${size * 0.2}px * var(--s) * var(--fit) * var(--bs))`, fontSize: fb(size * 0.6), letterSpacing: "0.1em", color: accent }}>{label.padStart(2, "0")}</span>;
+  if (kind === "arrow") return <span aria-hidden style={{ ...base, marginTop: 0, fontWeight: 400, fontSize: fb(size), lineHeight: bl(1.5), color: accent }}>→</span>;
   if (kind === "check") {
     const d = `calc(${size * 0.92}px * var(--s) * var(--fit) * var(--bs))`;
     return <span aria-hidden style={{ ...base, width: d, height: d, marginTop: `calc(${size * 0.24}px * var(--s) * var(--fit) * var(--bs))`, borderRadius: 999, border: `4px solid ${accent}` }} />;
@@ -552,22 +620,23 @@ function Body({
   marker?: Marker;
   radius: number;
 }) {
-  const { slide, edit, emphasis, design, bodyStyle } = ctx;
+  const { slide, edit, bodyEmphasis: emphasis, design, bodyStyle } = ctx;
   // Mantém os mesmos campos durante a edição, inclusive ao esvaziar prompt ou tail.
   const livePrompt = useRef<{ body: string; parts: PromptBody; hasTail: boolean } | null>(null);
   if (!edit || livePrompt.current?.body !== slide.body) {
     const parts = parsePromptBody(slide.body);
     livePrompt.current = parts ? { body: slide.body, parts, hasTail: Boolean(parts.tail) } : null;
   }
-  const items = listItems(slide.body);
+  if (slide.kind === "table") return <TableBody ctx={ctx} size={size} color={color} lineHeight={lineHeight} />;
+  const items = slide.kind === "stat" ? null : listItems(slide.body);
   if (items) {
     const accent = design.accent;
     const update = (next: typeof items) => edit?.setText("body", joinItems(next));
     return (
-      <Movable slide={slide} edit={edit} block="body"><div style={{ display: "flex", flexDirection: "column", gap: `calc(${size * 0.62}px * var(--s) * var(--fit) * var(--gap))` }}>
+      <Movable slide={slide} edit={edit} block="body"><div style={{ display: "flex", flexDirection: "column", gap: `calc(${size * (marker === "card" ? 0.4 : 0.62)}px * var(--s) * var(--fit) * var(--gap))` }}>
         {items.map((item, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 26, textAlign: "left" }}>
-            <ItemMarker kind={marker} label={item.marker ?? String(i + 1)} size={size} accent={accent} />
+          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 26, textAlign: "left", ...(marker === "card" ? { padding: "26px 32px", borderRadius: 18, background: "#FFFFFF", border: `1.5px solid ${ctx.colors.line}` } : {}) }}>
+            <ItemMarker kind={marker} label={item.marker ?? String(i + 1)} size={size} accent={marker === "arrow" ? ctx.colors.muted : marker === "card" ? accentOn(accent, ctx.colors) : accent} />
             {edit ? (
               <EditableText
                 as="span"
@@ -600,7 +669,7 @@ function Body({
     );
   }
   const parsed = livePrompt.current;
-  if (parsed) {
+  if (parsed && slide.kind !== "stat") {
     const { parts } = parsed;
     const { colors } = ctx;
     const accent = accentOn(design.accent, colors);
@@ -664,6 +733,152 @@ function Body({
   );
 }
 
+/** Cada linha abre como texto com separadores, preservando a edição por teclado. */
+function TableBody({ ctx, size, color, lineHeight }: { ctx: TemplateProps; size: number; color: string; lineHeight: number }) {
+  const { slide, edit } = ctx;
+  const [active, setActive] = useState<number | null>(null);
+  const savedRows = useRef<string[][] | null>(null);
+  const parsed = parseTable(slide.body);
+  if (active === null) savedRows.current = parsed;
+  const rows = active === null ? parsed : savedRows.current;
+  // Durante a digitação, uma linha vazia precisa manter seu índice.
+  const lines = active === null && rows ? rows.map((row) => row.join(" | ")) : slide.body.split(/\r?\n/);
+  if (!rows) return <Field ctx={ctx} field="body" placeholder="Item | Valor" style={{ fontSize: fb(size), lineHeight: bl(lineHeight), color, whiteSpace: "pre-line" }} />;
+  const update = (next: string[]) => edit?.setText("body", next.join("\n"));
+  const manchete = ctx.design.template === "manchete";
+  const primary = accentOn(ctx.design.accent, ctx.colors);
+  const open = (i: number) => {
+    if (active === null) update(lines);
+    setActive(i);
+    edit?.requestFocus(`row:${i}`);
+  };
+  return (
+    <Movable slide={slide} edit={edit} block="body"><div role="table" aria-label={slide.title || "Tabela"} style={{ width: "100%", ...ctx.bodyStyle, color: ctx.bodyStyle.color ?? color }}>
+      {rows.map((row, i) => {
+        const editing = edit && (active === i || edit.pendingFocus === `row:${i}`);
+        const rowStyle: CSSProperties = manchete ? {
+          padding: i === 0 ? "20px 24px" : "22px 24px",
+          borderBottom: i < rows.length - 1 ? `1px solid ${ctx.colors.line}` : undefined,
+          background: i === 0 ? primary : undefined,
+          color: i === 0 ? ((luminance(primary) ?? 0) > 0.4 ? "#111111" : "#FFFFFF") : ctx.colors.fg,
+          fontSize: fb(i === 0 ? 22 : 30),
+          fontWeight: i === 0 ? 700 : 500,
+          letterSpacing: i === 0 ? "0.09em" : "var(--bt)",
+          textTransform: i === 0 ? "uppercase" : undefined,
+          lineHeight: bl(1.3),
+          ...INTERACTIVE,
+        } : { padding: `${i === 0 ? 12 : 22}px 0`, borderBottom: i < rows.length - 1 ? `1px solid ${ctx.colors.line}` : undefined, fontSize: fb(i === 0 ? size * 0.7 : size * 0.88), fontWeight: i === 0 ? 700 : 400, color: i === 0 ? ctx.bodyStyle.color ?? ctx.colors.fg : undefined, lineHeight: bl(lineHeight), letterSpacing: "var(--bt)", ...INTERACTIVE };
+        return (
+          <div key={i} role="row" style={rowStyle}>
+            {editing ? <div role="cell"><EditableText
+              field={`row:${i}`}
+              label={i === 0 ? "Cabeçalho da tabela" : `Linha ${i} da tabela`}
+              value={lines[i] ?? row.join(" | ")}
+              style={{ margin: 0, color: "inherit" }}
+              emphasis={ctx.bodyEmphasis}
+              placeholder="Item | Valor"
+              edit={edit}
+              onChange={(text) => update(lines.map((line, j) => j === i ? text : line))}
+              onBlur={() => setActive(null)}
+              onEnter={() => {
+                if (rows.length >= 6) return;
+                const next = [...lines];
+                next.splice(i + 1, 0, row.map(() => "").join(" | "));
+                savedRows.current = [...rows.slice(0, i + 1), row.map(() => ""), ...rows.slice(i + 1)];
+                update(next);
+                open(i + 1);
+              }}
+              onBackspaceEmpty={() => {
+                if (rows.length <= 2 || i === 0) return;
+                savedRows.current = rows.filter((_, j) => j !== i);
+                update(lines.filter((_, j) => j !== i));
+                open(i - 1);
+              }}
+            /></div> : (
+              <div
+                tabIndex={edit ? 0 : undefined}
+                aria-label={edit ? `Editar ${i === 0 ? "cabeçalho" : `linha ${i}`}` : undefined}
+                style={{ display: "grid", gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))`, gap: 22, cursor: edit ? "text" : undefined }}
+                onPointerDown={edit ? (event) => event.stopPropagation() : undefined}
+                onClick={edit ? (event) => { event.stopPropagation(); open(i); } : undefined}
+                onKeyDown={edit ? (event) => {
+                  if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); open(i); }
+                } : undefined}
+              >
+                {row.map((cell, j) => <span key={j} role={i === 0 ? "columnheader" : "cell"} style={{ minWidth: 0, overflowWrap: "anywhere", textAlign: j === row.length - 1 ? "right" : "left" }}>{rich(cell, ctx.bodyEmphasis)}</span>)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div></Movable>
+  );
+}
+
+function MancheteTemplate(ctx: TemplateProps) {
+  const { slide, index, total, design, identity, colors, boxRef, contentRef, inlineImage, backdrop } = ctx;
+  const cover = index === 0;
+  const closing = slide.kind === "cta" && !cover;
+  const blend = colors.bg.startsWith("linear-gradient");
+  const accent = accentOn(design.accent, colors);
+  const faint = alpha(colors.fg, blend ? 0.82 : 0.5);
+  const bodyFont = ctx.bodyStyle.fontFamily;
+  const handle = `@${identity.handle || "seuperfil"}`;
+  const look = design.style;
+  const upper = !design.titleFont ? look === "moderno" || look === "bold" : true;
+  const text = <Body ctx={ctx} size={slide.kind === "list" ? 38 : look === "minimalista" ? 46 : 42} color={colors.muted} lineHeight={1.48} marker={colors.dark ? "arrow" : "card"} radius={20} />;
+  return (
+    <div style={{ position: "absolute", inset: 0, ...LAYER }}>
+      {cover && !backdrop && <div aria-hidden style={{ position: "absolute", inset: 0, background: `radial-gradient(85% 60% at 100% 0%, ${alpha(design.accent, 0.3)}, transparent 75%)` }} />}
+      {colors.dark && !cover && !backdrop && slide.kind !== "stat" && <span aria-hidden style={{ position: "absolute", right: 28, top: 96, fontFamily: ctx.titleStyle.fontFamily, fontSize: 380, fontWeight: ctx.weight, lineHeight: 1, letterSpacing: -14, color: alpha(colors.fg, look === "bold" ? 0.08 : blend ? 0.06 : 0.04) }}>{String(index + 1).padStart(2, "0")}</span>}
+      <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 7, background: blend ? alpha(colors.fg, 0.18) : mancheteColors(design.accent, design.surfaces).gradient }} />
+      {design.showProfile && (
+        <Identity ctx={ctx} style={{ position: "absolute", top: 39, left: 56, right: 56, display: "flex", justifyContent: "space-between", gap: 24, fontFamily: bodyFont, fontSize: 20, fontWeight: 700, lineHeight: 1.3, letterSpacing: "0.075em", textTransform: "uppercase", color: faint, whiteSpace: "nowrap" }}>
+          <span>{identity.name}</span>
+          <span>{handle}</span>
+          <span>{new Date().getFullYear()}</span>
+        </Identity>
+      )}
+      <div style={{ position: "absolute", inset: "110px 56px 120px", display: "flex", flexDirection: "column" }}>
+        <div ref={boxRef} data-block-container="" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: justify(slide, "flex-end") }}>
+          <div ref={contentRef} style={{ display: "flex", flexDirection: "column", textAlign: ctx.align }}>
+            {cover && design.showProfile && (
+              <div style={{ alignSelf: ctx.flex, display: "inline-flex", alignItems: "center", gap: 14, marginBottom: g(32), padding: "12px 26px 12px 14px", borderRadius: 60, background: alpha(colors.dark ? "#000000" : colors.fg, colors.dark ? 0.38 : 0.05), border: `1.5px solid ${alpha(colors.dark ? "#FFFFFF" : colors.fg, 0.12)}`, backdropFilter: "blur(10px)", fontFamily: bodyFont, fontSize: 26, fontWeight: 700, letterSpacing: "0.01em", color: colors.fg }}>
+                <Avatar identity={identity} size={44} />
+                <span>{handle}</span>
+                {identity.verified && <VerifiedBadge size={28} />}
+              </div>
+            )}
+            {inlineImage && <InlineImage ctx={ctx} radius={20} style={{ width: "100%", height: 360, flexShrink: 0, marginBottom: g(36) }} />}
+            {!cover && !closing && <Field ctx={ctx} field="tag" movable={false} placeholder="Etiqueta" style={{ marginBottom: g(24), fontFamily: bodyFont, fontSize: 24, fontWeight: 700, lineHeight: 1.2, letterSpacing: "0.13em", textTransform: "uppercase", color: blend ? alpha(colors.fg, 0.86) : accent }} />}
+            {closing && <div style={{ marginBottom: g(48) }}>{text}</div>}
+            <Field ctx={ctx} field="title" as="h2" placeholder="Escreva o título" style={{ marginBottom: slide.body && !closing ? g(36) : 0, fontSize: ft(cover ? 120 : look === "bold" ? 112 : colors.dark ? 104 : 96), fontWeight: ctx.weight, lineHeight: tl(upper ? (cover ? 0.93 : 0.97) : 1.06), letterSpacing: tt(look === "moderno" ? "-0.012em" : "-0.022em"), textTransform: upper ? "uppercase" : "none", whiteSpace: "pre-line", overflowWrap: "break-word", textWrap: "balance" }} />
+            {closing && (
+              <div style={slide.tag ? { marginTop: g(40), padding: "36px 48px 40px", borderRadius: 20, background: "#FFFFFF", border: `3px solid ${alpha(design.accent, 0.15)}` } : { marginTop: g(24) }}>
+                {slide.tag && <p style={{ margin: "0 0 12px", fontFamily: bodyFont, fontSize: 26, fontWeight: 500, color: alpha(mancheteColors(design.accent, design.surfaces).darkBg, 0.6) }}>Comenta a palavra:</p>}
+                <Field ctx={ctx} field="tag" movable={false} placeholder="Palavra para comentar" style={{ fontFamily: ctx.titleStyle.fontFamily, fontSize: 96, fontWeight: ctx.weight, lineHeight: 1, letterSpacing: "-0.025em", textTransform: "uppercase", color: accent }} />
+              </div>
+            )}
+            {closing && design.showProfile && (
+              <div style={{ marginTop: g(32), display: "flex", alignItems: "center", gap: 16, fontFamily: bodyFont, fontSize: 24, fontWeight: 600, color: faint }}>
+                <Avatar identity={identity} size={44} />
+                <span>{handle}</span>
+              </div>
+            )}
+            {!closing && (slide.kind === "quote" && slide.body ? <div style={{ padding: "44px 48px", borderRadius: 16, borderLeft: `6px solid ${accent}`, background: colors.dark ? alpha(colors.fg, 0.04) : "#FFFFFF" }}>{text}</div> : text)}
+          </div>
+        </div>
+      </div>
+      <div aria-hidden style={{ position: "absolute", left: 56, right: 56, bottom: 30, height: 28, display: "flex", alignItems: "center", gap: 16, fontFamily: bodyFont }}>
+        <div style={{ flex: 1, height: 3, borderRadius: 2, overflow: "hidden", background: alpha(colors.fg, colors.dark ? blend ? 0.15 : 0.1 : 0.08) }}>
+          <div style={{ width: `${(index + 1) / total * 100}%`, height: "100%", borderRadius: 2, background: blend ? alpha(colors.fg, 0.6) : colors.dark ? "#FFFFFF" : accent }} />
+        </div>
+        {design.showCounter && <span style={{ fontSize: 22, fontWeight: 600, color: faint, fontVariantNumeric: "tabular-nums" }}>{index + 1}/{total}</span>}
+      </div>
+    </div>
+  );
+}
+
 function PerfilTemplate(ctx: TemplateProps) {
   const { slide, index, total, design, identity, colors, boxRef, contentRef, inlineImage } = ctx;
   const isCover = slide.kind === "cover";
@@ -671,10 +886,10 @@ function PerfilTemplate(ctx: TemplateProps) {
   const hint = design.showSwipe && isCover && index < total - 1;
   const liveTitle = useRef<{ title: string; parts: NonNullable<ReturnType<typeof splitNumberedTitle>> } | null>(null);
   if (!ctx.edit || liveTitle.current?.title !== slide.title) {
-    const parts = splitNumberedTitle(slide.title);
+    const parts = slide.kind === "stat" ? null : splitNumberedTitle(slide.title);
     liveTitle.current = parts ? { title: slide.title, parts } : null;
   }
-  const numbered = liveTitle.current?.parts;
+  const numbered = slide.kind === "stat" ? null : liveTitle.current?.parts;
   const coverInset = (slideHeight(design.size) - 1080) / 2;
   return (
     <div style={{ position: "absolute", inset: 0, padding: isCover ? `${coverInset}px 64px` : "104px 64px 92px", display: "flex", flexDirection: "column", ...LAYER }}>

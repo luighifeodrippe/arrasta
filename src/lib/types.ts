@@ -1,6 +1,7 @@
-export type SlideKind = "cover" | "content" | "list" | "quote" | "cta";
-export type TemplateId = "perfil" | "editorial" | "foto" | "minimal" | "neon" | "notas" | "revista" | "poster" | "caderno";
-export type FontId = "inter" | "montserrat" | "poppins" | "bricolage" | "space" | "instrument" | "playfair" | "dmserif" | "anton" | "caveat";
+export type SlideKind = "cover" | "content" | "list" | "quote" | "cta" | "stat" | "table";
+export type TemplateId = "perfil" | "manchete" | "editorial" | "foto" | "minimal" | "neon" | "notas" | "revista" | "poster" | "caderno";
+export type FontId = "inter" | "montserrat" | "poppins" | "bricolage" | "space" | "instrument" | "playfair" | "dmserif" | "anton" | "barlow" | "jakarta" | "dmsans" | "caveat";
+export type MancheteStyle = "moderno" | "classico" | "minimalista" | "bold";
 export type TextAlign = "left" | "center" | "right" | "justify";
 /** Proporção do slide: 3:4 (1080×1440) aparece inteiro na grade do perfil; 4:5 (1080×1350) é o retrato clássico. */
 export type SlideSize = "3:4" | "4:5";
@@ -33,9 +34,13 @@ export type BlockId = "identity" | "title" | "body" | "image";
 export interface Slide {
   id: string;
   kind: SlideKind;
+  /** Etiqueta curta acima do título; no último card, a palavra que a pessoa comenta. */
+  tag: string;
   title: string;
   body: string;
   image: SlideImage | null;
+  /** Sugestão do redator: que imagem deixaria este card mais forte. */
+  imageIdea: string;
   /** Cor de fundo só deste slide. */
   background: string | null;
   /** Posição vertical do texto; null segue o modelo. */
@@ -51,6 +56,10 @@ export interface Slide {
 
 export interface Design {
   template: TemplateId;
+  /** Variação do modelo Manchete: letras, ritmo de claro e escuro e tamanho dos títulos. */
+  style: MancheteStyle;
+  /** Fundos claro e escuro do Manchete; null deriva da cor de destaque. */
+  surfaces: { light: string; dark: string } | null;
   theme: "light" | "dark";
   font: FontId;
   accent: string;
@@ -126,6 +135,14 @@ export interface CarouselFormat {
   prompt: string;
   origin: "dify" | "manual" | "builtin";
   createdAt: string;
+  /** Sempre usa o método editorial e abre no modelo Manchete. */
+  method?: boolean;
+}
+
+export interface CoverOption {
+  angle: string;
+  title: string;
+  body: string;
 }
 
 export interface ChatEntry {
@@ -133,15 +150,30 @@ export interface ChatEntry {
   role: "user" | "assistant";
   text: string;
   at: string;
-  task: "remix" | "create" | "edit";
-  /** Slide em foco no pedido (índice), ou null para o carrossel todo. */
+  task: "remix" | "create" | "edit" | "covers";
+  /** Formato antigo do foco (um slide só); as conversas novas usam `focus`. */
   scope: number | null;
+  /** Slides em que o pedido valia (índices na hora do pedido); vazio = o carrossel todo. */
+  focus?: number[];
+  /** Imagens que a pessoa anexou ao pedido. */
+  images?: string[];
+  /** Os passos que a resposta levou, em ordem. */
+  steps?: string[];
+  /** O que o pedido usou por trás (o método, a voz, o formato), para aparecer como menções. */
+  uses?: string[];
   /** Slides que a resposta alterou. */
   changed: string[];
   /** Como o carrossel estava antes da resposta, para restaurar. */
   before: { slides: Slide[]; caption: string; hashtags: string[] } | null;
   seconds: number | null;
   failed: boolean;
+}
+
+/** Uma conversa guardada com o ChatGPT Work sobre o carrossel. */
+export interface Talk {
+  id: string;
+  at: string;
+  entries: ChatEntry[];
 }
 
 export interface Project {
@@ -154,7 +186,10 @@ export interface Project {
   design: Design;
   caption: string;
   hashtags: string[];
+  /** A conversa aberta com o ChatGPT Work. */
   chat: ChatEntry[];
+  /** As conversas anteriores, da mais recente à mais antiga. */
+  talks?: Talk[];
   /** Imagens enviadas para este carrossel, para reusar em qualquer slide. */
   images: string[];
 }
@@ -240,6 +275,10 @@ export interface WritingSettings {
   slides: "poucos" | "medio" | "muitos";
   /** Palavras e expressões que nunca devem aparecer. */
   avoid: string;
+  /** Método editorial: apura, testa dez capas e revisa o texto antes de entregar. */
+  method: boolean;
+  /** Depois de escrever, gera a imagem da capa e dos cards em que o redator pediu uma. */
+  pictures: boolean;
 }
 
 export interface Settings {

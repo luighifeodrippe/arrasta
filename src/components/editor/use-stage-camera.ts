@@ -22,6 +22,16 @@ export function useStageCamera(ref: RefObject<HTMLDivElement | null>, width: num
   const zoom = useStageView((s) => s.zoom);
   const fitRequest = useStageView((s) => s.fitRequest);
   const selectedId = useEditor((s) => s.selectedId);
+  const barSpace = useStageView((s) => s.barSpace);
+  // A largura do palco muda depois que um painel lateral abre ou fecha: a câmera recentra com a medida final.
+  const [stageWidth, setStageWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setStageWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
   const [space, setSpace] = useState(false);
   const [panning, setPanning] = useState(false);
   const [selecting, setSelecting] = useState(false);
@@ -124,8 +134,8 @@ export function useStageCamera(ref: RefObject<HTMLDivElement | null>, width: num
     const viewport = el.getBoundingClientRect();
     // Reserva a barra de formatação e a barra do ChatGPT.
     el.scrollLeft += r.left + r.width / 2 - (viewport.left + el.clientWidth / 2);
-    el.scrollTop += r.top + r.height / 2 - (viewport.top + 64 + (el.clientHeight - 64 - 112) / 2);
-  }, [ref, fitRequest, layout, selectedId]);
+    el.scrollTop += r.top + r.height / 2 - (viewport.top + 64 + (el.clientHeight - 64 - barSpace) / 2);
+  }, [ref, fitRequest, layout, selectedId, barSpace, stageWidth]);
 
   const updateMarquee = useCallback((autoScroll = false) => {
     const el = ref.current;
@@ -135,7 +145,7 @@ export function useStageCamera(ref: RefObject<HTMLDivElement | null>, width: num
     if (autoScroll) {
       const edge = (value: number, start: number, end: number) => value < start + 36 ? -Math.min(20, (start + 36 - value) * 0.5) : value > end - 36 ? Math.min(20, (value - end + 36) * 0.5) : 0;
       el.scrollLeft += edge(active.current.x, viewport.left, viewport.right);
-      el.scrollTop += edge(active.current.y, viewport.top + 64, viewport.bottom - 112);
+      el.scrollTop += edge(active.current.y, viewport.top + 64, viewport.bottom - useStageView.getState().barSpace);
     }
     const start = { x: active.start.x - viewport.left + active.scroll.x - el.scrollLeft, y: active.start.y - viewport.top + active.scroll.y - el.scrollTop };
     const end = { x: Math.max(0, Math.min(el.clientWidth, active.current.x - viewport.left)), y: Math.max(0, Math.min(el.clientHeight, active.current.y - viewport.top)) };

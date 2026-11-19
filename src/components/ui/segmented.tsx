@@ -26,7 +26,7 @@ export function Segmented<T extends string>({
   const reducedMotion = useReducedMotion();
   const pill = appearance === "pill";
   return (
-    <div role="radiogroup" aria-label={label} className={cn("inline-flex p-1", pill ? "rounded-full bg-white/[0.05] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1)]" : "glass-flat rounded-[13px]", className)}>
+    <div role="radiogroup" aria-label={label} className={cn("inline-flex p-1", pill ? "rounded-full bg-white/[0.05] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1)]" : "well rounded-[13px]", className)}>
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -37,7 +37,7 @@ export function Segmented<T extends string>({
             aria-checked={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              "relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-colors duration-150",
+              "relative flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-colors duration-150",
               pill ? "h-8 rounded-full px-3.5 text-[14px] [&_svg]:size-4" : size === "sm" ? "h-7 rounded-[10px] px-2.5 text-[12.5px] [&_svg]:size-3.5" : "h-8 rounded-[10px] px-3.5 text-[13.5px] [&_svg]:size-4",
               active ? "text-ink" : "text-ink-2 hover:text-ink",
             )}

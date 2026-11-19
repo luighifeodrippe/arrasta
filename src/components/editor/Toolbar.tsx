@@ -6,6 +6,7 @@ import {
   AiMagicIcon,
   ArrangeIcon,
   ArrowDown01Icon,
+  ArrowUp02Icon,
   Camera01Icon,
   Delete02Icon,
   HighlighterIcon,
@@ -30,7 +31,7 @@ import { api } from "@/lib/client/api";
 import { useApp } from "@/lib/client/app-store";
 import { useEditor } from "@/lib/client/editor-store";
 import { imageLibrary, placeImage, uploadImages } from "@/lib/client/images";
-import { ACCENTS, FONTS, fontVar } from "@/lib/defaults";
+import { ACCENTS, effectiveFont, fontChoice, FONTS, fontVar } from "@/lib/defaults";
 import type { Design, FontId, Profile, Slide, SlideImage, TextAlign, TextStyle } from "@/lib/types";
 import { cn } from "../ui/cn";
 import { Input, Label } from "../ui/field";
@@ -41,6 +42,7 @@ import { Tip } from "../ui/tooltip";
 import { useAgent } from "./agent-store";
 import { useEditing, type TextTarget } from "./editing-store";
 import { Swatches } from "./Swatches";
+import { suggestionsFor } from "./suggestions";
 import { useAgentActions } from "./use-agent-actions";
 
 const TEXT_COLORS = ["#ffffff", "#0a0a0a", "#f3efe7", "#8a8a8a", "#ff3500", "#ffd60a", "#1d9bf0", "#16a34a"];
@@ -51,7 +53,6 @@ const ALIGNS: { value: TextAlign; label: string; icon: ReactNode }[] = [
   { value: "right", label: "À direita", icon: <Icon icon={TextAlignRightIcon} /> },
   { value: "justify", label: "Justificado", icon: <Icon icon={TextAlignJustifyLeftIcon} /> },
 ];
-const REWRITES = ["Mais curto", "Gancho mais forte", "Mais simples", "Outra versão", "Corrigir erros"];
 
 type Scope = TextTarget | "both";
 
@@ -121,7 +122,7 @@ function Actions({ onAll, onReset }: { onAll: () => void; onReset?: () => void }
         </button>
       )}
       <button onClick={onAll} className="h-8 flex-[1.4] rounded-[10px] bg-white/[0.07] text-[12.5px] text-ink transition-colors hover:bg-white/[0.12]">
-        Aplicar em todos os slides
+        Aplicar em todos os cards
       </button>
     </div>
   );
@@ -151,6 +152,7 @@ export function EditorToolbar() {
   const selectedId = useEditor((s) => s.selectedId);
   const index = project.slides.findIndex((s) => s.id === selectedId);
   const slide = project.slides[index];
+  const target = useEditing((s) => s.target);
   const ref = useRef<HTMLDivElement>(null);
   const [more, setMore] = useState(false);
 
@@ -173,13 +175,19 @@ export function EditorToolbar() {
   return (
     <T.Root
       ref={ref}
-      aria-label={`Formatar o slide ${index + 1}`}
+      aria-label={`Formatar o card ${index + 1}`}
       data-tour="toolbar"
       className={cn(
         "glass no-scrollbar flex h-12 min-w-0 max-w-full items-center overflow-x-auto rounded-[15px] px-1.5",
         more && "[mask-image:linear-gradient(to_right,#000_calc(100%-48px),transparent)]",
       )}
     >
+      {/* Em que a barra mexe agora: o card escolhido e, tocando num texto, só aquele texto. */}
+      <span className="flex shrink-0 items-center gap-1.5 pr-2 text-[12.5px] font-medium text-ink">
+        <span className="stage-n" data-on aria-hidden>{index + 1}</span>
+        <span className="hidden @[820px]:inline">{target === "title" ? "Título" : target === "body" ? "Texto" : "Card todo"}</span>
+      </span>
+      <Separator />
       <FontPicker />
       <TextSize slide={slide} />
       <Separator />
@@ -204,7 +212,7 @@ export function OrganizeButton({ ids }: { ids: string[] }) {
   const organize = () => {
     const state = useEditor.getState();
     const needs = state.project?.slides.some((s) => ids.includes(s.id) && (Object.keys(s.offsets ?? {}).length > 0 || s.gap != null || s.valign != null));
-    if (!needs) { toast(ids.length === 1 ? "Este slide já está organizado" : "Estes slides já estão organizados"); return; }
+    if (!needs) { toast(ids.length === 1 ? "Este card já está organizado" : "Estes cards já estão organizados"); return; }
     state.organizeSlides(ids);
   };
   return <Tip label="Organizar: volta as peças para o lugar, com o espaço certo">
@@ -216,12 +224,13 @@ function FontPicker() {
   const design = useEditor((s) => s.project!.design);
   const setDesign = useEditor((s) => s.setDesign);
   const [scope, setScope] = useScope();
-  const currentId: FontId = scope === "title" ? (design.titleFont ?? design.font) : scope === "body" ? (design.bodyFont ?? design.font) : design.font;
+  const currentId: FontId = effectiveFont(design, scope === "body" ? "body" : "title");
   const current = FONTS.find((f) => f.id === currentId) ?? FONTS[0];
   const choose = (id: FontId) => {
-    if (scope === "both") setDesign({ font: id, titleFont: null, bodyFont: null });
-    else if (scope === "title") setDesign({ titleFont: id === design.font ? null : id });
-    else setDesign({ bodyFont: id === design.font ? null : id });
+    const manchete = design.template === "manchete";
+    if (scope === "both") setDesign(fontChoice(design, id));
+    else if (scope === "title") setDesign({ titleFont: !manchete && id === design.font ? null : id });
+    else setDesign({ bodyFont: !manchete && id === design.font ? null : id });
   };
   return (
     <Panel
@@ -237,7 +246,7 @@ function FontPicker() {
         </T.Button>
       }
     >
-      <Heading>Fonte · vale para todos os slides</Heading>
+      <Heading>Fonte · vale para todos os cards</Heading>
       <Segmented label="Fonte de qual texto" size="sm" className="w-full" value={scope} onChange={setScope} options={SCOPES} />
       <div className="-mx-1.5 flex flex-col">
         {FONTS.map((f) => (
@@ -265,7 +274,7 @@ function TextSize({ slide }: { slide: Slide }) {
   const step = (delta: number) => {
     for (const field of fields) setTextStyle(slide.id, [field], { size: round(clamp(size(field) + delta, 0.5, 1.8)) }, "size");
   };
-  const what = target === "title" ? "do título" : target === "body" ? "do texto" : "do slide";
+  const what = target === "title" ? "do título" : target === "body" ? "do texto" : "do card";
   return (
     <div className="ml-1 flex shrink-0 items-center rounded-[10px] bg-white/[0.04]" role="group" aria-label={`Tamanho ${what}`}>
       <Tip label={`Diminuir o tamanho ${what}`}>
@@ -314,11 +323,11 @@ function ColorPicker({ slide }: { slide: Slide }) {
       <Actions
         onAll={() => {
           setTextStyleAll(fields, { color: value });
-          toast.success("Cor aplicada em todos os slides");
+          toast.success("Cor aplicada em todos os cards");
         }}
       />
       <div className="-mx-3.5 my-0.5 h-px shrink-0 bg-white/[0.08]" />
-      <Heading>Cor do destaque · palavras destacadas em todos os slides</Heading>
+      <Heading>Cor do destaque · palavras destacadas em todos os cards</Heading>
       <Swatches value={design.accent} onChange={(next) => setDesign({ accent: next ?? "#ff3500" })} colors={ACCENTS} label="Cor do destaque" />
     </Panel>
   );
@@ -390,7 +399,7 @@ function SpacingPicker({ slide }: { slide: Slide }) {
           setTextStyleAll(fields, { size, leading, tracking });
           setDesign({ gap });
           updateAllSlides({ gap: null });
-          toast.success("Espaçamento aplicado em todos os slides");
+          toast.success("Espaçamento aplicado em todos os cards");
         }}
       />
     </Panel>
@@ -437,7 +446,7 @@ function AlignPicker({ slide }: { slide: Slide }) {
           </Tip>
         ))}
       </div>
-      <Heading>Posição no slide</Heading>
+      <Heading>Posição no card</Heading>
       <Segmented
         label="Posição do texto"
         size="sm"
@@ -455,7 +464,7 @@ function AlignPicker({ slide }: { slide: Slide }) {
         onAll={() => {
           if (value) setTextStyleAll(fields, { align: value });
           updateAllSlides({ valign: slide.valign });
-          toast.success("Alinhamento aplicado em todos os slides");
+          toast.success("Alinhamento aplicado em todos os cards");
         }}
       />
     </Panel>
@@ -470,7 +479,7 @@ function DeleteField({ slide }: { slide: Slide }) {
   if (!target || !slide[target]) return null;
   const what = target === "title" ? "o título" : "o texto";
   return (
-    <Tip label={`Apagar ${what} deste slide`}>
+    <Tip label={`Apagar ${what} deste card`}>
       <T.Button
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => {
@@ -479,7 +488,7 @@ function DeleteField({ slide }: { slide: Slide }) {
           toast(`Apaguei ${what}. ${modKey}Z desfaz.`);
         }}
         className={cn(iconOnly, "hover:text-red-300")}
-        aria-label={`Apagar ${what} deste slide`}
+        aria-label={`Apagar ${what} deste card`}
       >
         <Icon icon={Delete02Icon} />
       </T.Button>
@@ -497,6 +506,9 @@ function ImagePicker({ slide }: { slide: Slide }) {
   const image = slide.image;
   const patchImage = (p: Partial<SlideImage>, key?: string) => image && updateSlide(slide.id, { image: { ...image, ...p } }, key);
   const isFoto = project.design.template === "foto";
+  const { picture } = useAgentActions();
+  const imaging = useAgent((s) => s.imaging.includes(slide.id));
+  const [idea, setIdea] = useState("");
 
   const upload = async (files: File[]) => {
     setBusy(true);
@@ -507,10 +519,10 @@ function ImagePicker({ slide }: { slide: Slide }) {
 
   return (
     <Panel
-      label="Imagem do slide"
+      label="Imagem do card"
       width={312}
       trigger={
-        <T.Button className={itemClass} aria-label="Imagem do slide">
+        <T.Button className={itemClass} aria-label="Imagem do card">
           <Icon icon={ImageAdd02Icon} />
           <span className="hidden @min-[1000px]:inline">Imagem</span>
         </T.Button>
@@ -573,7 +585,7 @@ function ImagePicker({ slide }: { slide: Slide }) {
       )}
       {(uploads.length > 0 || original.length > 0) && (
         <div className="flex flex-col gap-2">
-          <Heading>Clique para usar neste slide</Heading>
+          <Heading>Clique para usar neste card</Heading>
           <div className="grid max-h-[188px] grid-cols-4 gap-1.5 overflow-y-auto">
             {[...uploads, ...original].map((src, i) => (
               <button
@@ -589,6 +601,27 @@ function ImagePicker({ slide }: { slide: Slide }) {
           </div>
         </div>
       )}
+      <form
+        className="flex flex-col gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void picture([{ id: slide.id, idea: idea.trim() || undefined }]);
+        }}
+      >
+        <Heading>Gerar com o ChatGPT Work</Heading>
+        <textarea
+          value={idea}
+          onChange={(event) => setIdea(event.target.value)}
+          rows={2}
+          placeholder={slide.imageIdea || "Diga a cena, ou deixe em branco para ele decidir pelo texto do card"}
+          aria-label="Que imagem gerar"
+          className="field min-h-[56px] resize-none px-3 py-2 text-[13px] leading-snug"
+        />
+        <button type="submit" disabled={imaging} className="control flex h-9 items-center justify-center gap-2 rounded-[10px] px-3 text-[13px] font-medium transition-colors hover:border-line-strong disabled:opacity-60">
+          <Icon icon={AiMagicIcon} className="size-4" />
+          {imaging ? "Gerando a imagem…" : image ? "Gerar outra imagem" : "Gerar a imagem"}
+        </button>
+      </form>
       <p className="text-[12px] leading-relaxed text-ink-3">Também dá para colar ({modKey}V) ou arrastar uma imagem para o card.</p>
       <input
         ref={fileRef}
@@ -613,9 +646,9 @@ function BackgroundPicker({ slide }: { slide: Slide }) {
   const current = slide.background ?? design.background;
   return (
     <Panel
-      label="Fundo do slide"
+      label="Fundo do card"
       trigger={
-        <T.Button className={itemClass} aria-label="Fundo do slide">
+        <T.Button className={itemClass} aria-label="Fundo do card">
           <span className="relative">
             <Icon icon={PaintBucketIcon} />
             {current && <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full shadow-[0_0_0_1.5px_#1a1a1a]" style={{ background: current }} />}
@@ -624,13 +657,13 @@ function BackgroundPicker({ slide }: { slide: Slide }) {
         </T.Button>
       }
     >
-      <Heading>Fundo deste slide</Heading>
-      <Swatches value={slide.background} onChange={(background) => updateSlide(slide.id, { background })} colors={BACKGROUNDS} allowDefault label="Fundo do slide" />
+      <Heading>Fundo deste card</Heading>
+      <Swatches value={slide.background} onChange={(background) => updateSlide(slide.id, { background })} colors={BACKGROUNDS} allowDefault label="Fundo do card" />
       <Actions
         onAll={() => {
           setDesign({ background: slide.background });
           updateAllSlides({ background: null });
-          toast.success("Fundo aplicado em todos os slides");
+          toast.success("Fundo aplicado em todos os cards");
         }}
       />
     </Panel>
@@ -667,12 +700,12 @@ function ProfilePicker() {
 
   return (
     <Panel
-      label="Foto e nome nos slides"
+      label="Foto e nome nos cards"
       width={300}
       open={open}
       onOpenChange={setOpen}
       trigger={
-        <T.Button className={iconOnly} aria-label="Foto e nome nos slides">
+        <T.Button className={iconOnly} aria-label="Foto e nome nos cards">
           {profile.avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profile.avatar} alt="" className="size-[22px] rounded-full object-cover ring-1 ring-white/20" />
@@ -682,7 +715,7 @@ function ProfilePicker() {
         </T.Button>
       }
     >
-      <Heading>Foto e nome nos slides</Heading>
+      <Heading>Foto e nome nos cards</Heading>
       <div className="flex items-center gap-3">
         <button onClick={() => fileRef.current?.click()} className="group relative size-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.05]" aria-label="Trocar a foto">
           {profile.avatar ? (
@@ -737,7 +770,7 @@ function ProfilePicker() {
       </div>
       <div className="-my-1 flex flex-col">
         <Toggle label="Selo de verificado" checked={profile.verified} onChange={(verified) => update({ verified })} />
-        <Toggle label="Mostrar foto e @ nos slides" checked={showProfile} onChange={(value) => setDesign({ showProfile: value })} />
+        <Toggle label="Mostrar foto e @ nos cards" checked={showProfile} onChange={(value) => setDesign({ showProfile: value })} />
       </div>
       <button
         onClick={() => {
@@ -789,11 +822,14 @@ export function RewritePopover({
 
   const send = (request: string) => {
     if (!request.trim() || running) return;
-    const what = scope === "title" ? "Mude só o título deste slide" : scope === "body" ? "Mude só o texto (não o título) deste slide" : "Mude este slide";
+    const what = scope === "title" ? "Mude só o título deste card" : scope === "body" ? "Mude só o texto (não o título) deste card" : "Mude este card";
     setOpen(false);
     setText("");
     setPicked(null);
-    void edit(`${what}: ${request.trim()}`, index);
+    // O pedido vale para este card: ele passa a ser o escolhido.
+    const slide = useEditor.getState().project?.slides[index];
+    if (slide) useEditor.getState().select(slide.id);
+    void edit(`${what}: ${request.trim()}`);
   };
 
   return (
@@ -808,7 +844,7 @@ export function RewritePopover({
           aria-label="Reescrever com o ChatGPT"
           className="arrasta-pop glass z-50 flex w-[320px] flex-col gap-3 rounded-[16px] p-3.5 text-ink"
         >
-          <Heading>Reescrever com o ChatGPT · slide {index + 1}</Heading>
+          <Heading>Reescrever com o ChatGPT Work · card {index + 1}</Heading>
           <Segmented
             label="O que reescrever"
             size="sm"
@@ -818,7 +854,7 @@ export function RewritePopover({
             options={[
               { value: "title", label: "Título" },
               { value: "body", label: "Texto" },
-              { value: "slide", label: "Slide todo" },
+              { value: "slide", label: "Card todo" },
             ]}
           />
           <form
@@ -843,18 +879,13 @@ export function RewritePopover({
               aria-label="Como reescrever"
               className="min-h-[52px] flex-1 resize-none bg-transparent px-1.5 py-1 text-[13.5px] leading-snug outline-none placeholder:text-ink-3"
             />
-            <button type="submit" disabled={!text.trim() || running} className="keycap grid size-8 shrink-0 place-items-center rounded-[10px] disabled:opacity-35" aria-label="Reescrever">
-              <Icon icon={AiMagicIcon} className="size-4" />
+            <button type="submit" disabled={!text.trim() || running} data-ready={text.trim() && !running ? "" : undefined} className="key work-send" aria-label="Reescrever">
+              <Icon icon={ArrowUp02Icon} className="size-[18px]" />
             </button>
           </form>
           <div className="flex flex-wrap gap-1.5">
-            {REWRITES.map((r) => (
-              <button
-                key={r}
-                onClick={() => send(r)}
-                disabled={running}
-                className="h-7 rounded-full bg-white/[0.06] px-2.5 text-[12.5px] text-ink-2 transition-colors hover:bg-white/[0.1] hover:text-ink disabled:opacity-40"
-              >
+            {suggestionsFor(index === 0 ? "cover" : "slide").map((r) => (
+              <button key={r} onClick={() => send(r)} disabled={running} className="chip-key">
                 {r}
               </button>
             ))}

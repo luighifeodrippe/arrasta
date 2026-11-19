@@ -62,7 +62,7 @@ SOFTWARE.
 
 ## Fontes
 
-Inter, Montserrat, Poppins, Bricolage Grotesque, Space Grotesk, Instrument Serif, Playfair Display, DM Serif Display, Anton e Caveat, do Google Fonts, sob a SIL Open Font License 1.1. O `next/font` baixa e serve as fontes junto do app.
+Inter, Montserrat, Poppins, Bricolage Grotesque, Space Grotesk, Instrument Serif, Playfair Display, DM Serif Display, DM Sans, Anton, Barlow Condensed, Plus Jakarta Sans e Caveat, do Google Fonts, sob a SIL Open Font License 1.1. O `next/font` baixa e serve as fontes junto do app.
 
 ## Serviços
 

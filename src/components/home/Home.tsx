@@ -4,13 +4,14 @@ import { ArrowRight02Icon, BulbIcon, Delete02Icon, ImageAdd02Icon, Link04Icon, M
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { DropdownMenu } from "radix-ui";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ThinkingOrb } from "thinking-orbs";
 import { api } from "@/lib/client/api";
 import { identityOf, useApp } from "@/lib/client/app-store";
-import { SLIDE_W, slideHeight } from "@/lib/defaults";
-import type { Project } from "@/lib/types";
+import { useNewCarousel } from "@/lib/client/new-carousel";
+import { defaultWriting, IDEA_PROMPTS, REMIX_LEVELS, SLIDE_W, slideHeight } from "@/lib/defaults";
+import type { Design, Project } from "@/lib/types";
 import { ChatGPTAccount } from "../app/ChatGPTAccount";
 import { FormatPicker } from "../app/FormatPicker";
 import { Logo } from "../app/Logo";
@@ -24,8 +25,6 @@ import { Onboarding } from "./Onboarding";
 import { Showcase } from "./Showcase";
 import { ContentBank } from "./ContentBank";
 import { Icon } from "@/components/ui/icon";
-
-type Mode = "link" | "idea" | "prints";
 
 const relative = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
 function ago(iso: string) {
@@ -50,82 +49,28 @@ function ago(iso: string) {
 export function Home() {
   const router = useRouter();
   const reducedMotion = useReducedMotion();
-  const [mode, setMode] = useState<Mode>("link");
-  const [link, setLink] = useState("");
-  const [idea, setIdea] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    mode, setMode, link, setLink, idea, setIdea, files, setFiles,
+    level, setLevel, setFormat, busy, error, ready, showFormats, chosenFormat, submit,
+  } = useNewCarousel();
+  const [creatingBlank, setCreatingBlank] = useState(false);
+  const blankPending = useRef(false);
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
   const [removing, setRemoving] = useState(false);
   const cancelDelete = useRef<HTMLButtonElement>(null);
   const deleteTrigger = useRef<HTMLButtonElement | null>(null);
-  const [formatId, setFormatId] = useState<string | null>(null);
-  const [formatPicked, setFormatPicked] = useState(false);
   const profile = useApp((s) => s.profile);
-  const connected = useApp((s) => s.auth?.connected ?? false);
-  const setLoginOpen = useApp((s) => s.setLoginOpen);
+  const slides = useApp((s) => s.settings?.writing.slides) ?? defaultWriting().slides;
+  const slideCount = { poucos: "5 a 7", medio: "7 a 9", muitos: "9 a 12" }[slides];
   const fileRef = useRef<HTMLInputElement>(null);
   const linkRef = useRef<HTMLInputElement>(null);
   const ideaRef = useRef<HTMLTextAreaElement>(null);
   const printsRef = useRef<HTMLButtonElement>(null);
-  const pending = useRef(false);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("arrasta:home-mode");
-      if (saved === "link" || saved === "idea" || saved === "prints") setMode(saved);
-    } catch {
-      // Sem armazenamento: começa em Link.
-    }
-  }, []);
 
   useEffect(() => {
     api.projects().then(setProjects).catch(() => setProjects([]));
   }, []);
-
-  const ready = mode === "link" ? link.trim().length > 0 : mode === "idea" ? idea.trim().length > 0 : files.length > 0;
-
-  // Formatos servem para ideias e para links que não são carrossel do Instagram (esses seguem o original).
-  const isInstagram = /instagram\.com|instagr\.am/i.test(link);
-  const showFormats = mode === "idea" || (mode === "link" && link.trim().length > 0 && !isInstagram);
-  // Vídeo vira história: o Storytelling já vem escolhido, até a pessoa trocar.
-  const isVideo = mode === "link" && /youtube\.com|youtu\.be/i.test(link);
-  const chosenFormat = formatPicked ? formatId : isVideo ? "storytelling" : formatId;
-
-  const submit = async () => {
-    if (!ready || busy) return;
-    // Sem ChatGPT conectado: entra primeiro e continua sozinho depois do login.
-    if (!connected) {
-      pending.current = true;
-      setLoginOpen(true);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const chosen = showFormats ? chosenFormat : null;
-      const project =
-        mode === "link"
-          ? await api.createProject({ kind: "link", url: link.trim(), formatId: chosen })
-          : mode === "idea"
-            ? await api.createProject({ kind: "idea", brief: idea.trim(), formatId: chosen })
-            : await api.createFromImages(files);
-      router.push(`/editor/${project.id}?auto=${mode === "idea" ? "create" : "remix"}`);
-    } catch (e) {
-      setError((e as Error).message);
-      setBusy(false);
-    }
-  };
-
-  useEffect(() => {
-    if (connected && pending.current) {
-      pending.current = false;
-      void submit();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected]);
 
   const focusInput = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -135,9 +80,19 @@ export function Home() {
     }, 250);
   };
 
-  const blank = async () => {
-    const project = await api.createProject({ kind: "blank" });
-    router.push(`/editor/${project.id}`);
+  const blank = async (design?: Partial<Design>) => {
+    if (blankPending.current) return;
+    blankPending.current = true;
+    setCreatingBlank(true);
+    try {
+      const project = await api.createProject({ kind: "blank" });
+      if (design) await api.saveProject({ ...project, design: { ...project.design, ...design } });
+      router.push(`/editor/${project.id}`);
+    } catch (error) {
+      toast.error((error as Error).message);
+      blankPending.current = false;
+      setCreatingBlank(false);
+    }
   };
 
   const remove = async (id: string) => {
@@ -195,15 +150,7 @@ export function Home() {
                 appearance="pill"
                 className="mt-10"
                 value={mode}
-                onChange={(m) => {
-                  setMode(m);
-                  try {
-                    localStorage.setItem("arrasta:home-mode", m);
-                  } catch {
-                    // Sem armazenamento: a aba vale só nesta visita.
-                  }
-                  setError(null);
-                }}
+                onChange={setMode}
                 options={[
                   { value: "link", label: "Link", icon: <Icon icon={Link04Icon} /> },
                   { value: "idea", label: "Texto", icon: <Icon icon={BulbIcon} /> },
@@ -250,6 +197,19 @@ export function Home() {
                     autoFocus
                   />
                 )}
+                {mode === "idea" && !idea.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prompt = IDEA_PROMPTS[Math.floor(Math.random() * IDEA_PROMPTS.length)];
+                      setIdea(prompt.replaceAll("[SEU NICHO]", profile?.about?.trim() || "[SEU NICHO]"));
+                      ideaRef.current?.focus();
+                    }}
+                    className="chip-key self-start"
+                  >
+                    Sem ideia? Sugerir um tema
+                  </button>
+                )}
                 {mode === "prints" && (
                   <button
                     ref={printsRef}
@@ -262,9 +222,9 @@ export function Home() {
                     }}
                     className="home-field-source rounded-full text-left text-ink-2 transition-colors hover:text-ink"
                   >
-                    <Icon icon={Upload04Icon} className="size-[18px] shrink-0 text-ink-3" />
+                    {files.length ? <PrintStack files={files} /> : <Icon icon={Upload04Icon} className="size-[18px] shrink-0 text-ink-3" />}
                     <span className="truncate">
-                      {files.length ? `${files.length} ${files.length === 1 ? "imagem escolhida" : "imagens escolhidas"}` : <><span className="home-example-full">Escolha ou arraste os prints dos slides, na ordem</span><span className="home-example-short">Escolha os prints</span></>}
+                      {files.length ? `${files.length} ${files.length === 1 ? "imagem escolhida" : "imagens escolhidas"}` : <><span className="home-example-full">Escolha ou arraste os prints dos cards, na ordem</span><span className="home-example-short">Escolha os prints</span></>}
                     </span>
                   </button>
                 )}
@@ -295,6 +255,18 @@ export function Home() {
                   )}
                 </Button>
               </form>
+              {mode !== "idea" && (
+                <div className="mt-4 flex flex-wrap items-center gap-2 pl-5">
+                  <span className="text-[13px] font-semibold text-ink-2">Quanto mudar</span>
+                  <Segmented
+                    label="Quanto mudar"
+                    size="sm"
+                    value={level}
+                    onChange={setLevel}
+                    options={REMIX_LEVELS.map((item) => ({ value: item.id, label: item.name }))}
+                  />
+                </div>
+              )}
               <AnimatePresence initial={false}>
                 {showFormats && (
                   <motion.div
@@ -306,10 +278,7 @@ export function Home() {
                   >
                     <FormatPicker
                       value={chosenFormat}
-                      onChange={(id) => {
-                        setFormatId(id);
-                        setFormatPicked(true);
-                      }}
+                      onChange={setFormat}
                       align="start"
                       className="mt-4 pl-5"
                     />
@@ -324,17 +293,17 @@ export function Home() {
                     {mode === "link"
                       ? "Instagram público, YouTube com legenda, X e artigos."
                       : mode === "idea"
-                        ? "Ideia curta ou texto longo: vira de 6 a 9 slides na sua voz."
+                        ? `Ideia curta ou texto longo: vira de ${slideCount} cards na sua voz.`
                         : "Posts privados ou de outras redes: o ChatGPT lê os prints."}
                   </p>
                 )}
-                <button onClick={blank} className="home-blank">
+                <button onClick={() => void blank()} disabled={creatingBlank} className="home-blank chip-key">
                   <Icon icon={PlusSignIcon} className="size-4" />
                   Começar em branco
                 </button>
               </div>
             </div>
-            <Onboarding hasProjects={Boolean(projects?.length)} onPaste={focusInput} />
+            {projects !== null && <Onboarding hasProjects={projects.length > 0} onPaste={focusInput} />}
           </div>
         </section>
 
@@ -352,7 +321,7 @@ export function Home() {
           </section>
         ) : null}
         {Boolean(projects?.length) && <ContentBank key="content-bank" />}
-        <Models key="models" />
+        <Models key="models" onChoose={(design) => void blank(design)} disabled={creatingBlank} />
         {!projects?.length && <ContentBank key="content-bank" />}
       </main>
       <footer className="home-shell home-footer">
@@ -379,14 +348,28 @@ export function Home() {
   );
 }
 
-function Models() {
+/** Os prints escolhidos, empilhados dentro do campo: dá para ver o que vai ser recriado antes de enviar. */
+function PrintStack({ files }: { files: File[] }) {
+  const urls = useMemo(() => files.slice(0, 5).map((file) => URL.createObjectURL(file)), [files]);
+  useEffect(() => () => urls.forEach((url) => URL.revokeObjectURL(url)), [urls]);
+  return (
+    <span className="flex shrink-0 items-center" aria-hidden>
+      {urls.map((url, position) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={url} src={url} alt="" className="h-9 w-7 rounded-[6px] object-cover shadow-[0_0_0_1.5px_#0b0b0b,0_2px_6px_rgb(0_0_0/0.5)]" style={{ marginLeft: position ? -10 : 0, rotate: `${(position - (urls.length - 1) / 2) * 4}deg` }} />
+      ))}
+    </span>
+  );
+}
+
+function Models({ onChoose, disabled }: { onChoose: (design: Partial<Design>) => void; disabled: boolean }) {
   return (
     <section className="home-section" aria-labelledby="models-heading">
       <div className="home-section-heading">
         <h2 id="models-heading" className="titulo">Modelos</h2>
         <p>Os cards já saem com o seu nome e a sua foto.</p>
       </div>
-      <Showcase />
+      <Showcase onChoose={onChoose} disabled={disabled} />
     </section>
   );
 }

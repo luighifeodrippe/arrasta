@@ -7,11 +7,9 @@ import { toast } from "sonner";
 import { ThinkingOrb } from "thinking-orbs";
 import { api } from "@/lib/client/api";
 import { useApp } from "@/lib/client/app-store";
-import type { Effort } from "@/lib/types";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
 import { Dialog, DialogContent } from "../ui/dialog";
-import { Segmented } from "../ui/segmented";
 import { Icon } from "@/components/ui/icon";
 
 const PLAN: Record<string, string> = {
@@ -32,7 +30,7 @@ export function planLabel(plan: string | null | undefined) {
 }
 
 /** Botão do topo: "Entrar com ChatGPT" ou a conta conectada. */
-export function ChatGPTAccount({ compact = false }: { compact?: boolean }) {
+export function ChatGPTAccount({ compact = false, status = false }: { compact?: boolean; status?: boolean }) {
   const auth = useApp((s) => s.auth);
   const setLoginOpen = useApp((s) => s.setLoginOpen);
 
@@ -44,28 +42,25 @@ export function ChatGPTAccount({ compact = false }: { compact?: boolean }) {
       </Button>
     );
   }
-  return <AccountMenu compact={compact} />;
+  return <AccountMenu compact={compact} status={status} />;
 }
 
-function AccountMenu({ compact }: { compact: boolean }) {
+/** `status` mostra a conta como uma linha de estado ("Conectado · Pro") que abre o mesmo menu. */
+function AccountMenu({ compact, status }: { compact: boolean; status: boolean }) {
   const auth = useApp((s) => s.auth)!;
   const refreshAuth = useApp((s) => s.refreshAuth);
-  const settings = useApp((s) => s.settings);
-  const setSettings = useApp((s) => s.setSettings);
   const openSettings = useApp((s) => s.openSettings);
   const plan = planLabel(auth.plan);
-
-  const save = async (patch: { model?: string | null; effort?: Effort }) => {
-    try {
-      setSettings((await api.saveSettings(patch)).settings);
-    } catch (error) {
-      toast.error((error as Error).message);
-    }
-  };
 
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
+        {status ? (
+          <button aria-label={`Conta do ChatGPT${plan ? ` ${plan}` : ""}, conectada`} className="flex h-8 min-w-0 items-center gap-1.5 rounded-[9px] px-2 text-[12px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink data-[state=open]:bg-white/[0.1] data-[state=open]:text-ink">
+            <i className="led shrink-0" aria-hidden />
+            <span className="truncate">{plan || "Conectado"}</span>
+          </button>
+        ) : (
         <button aria-label={`ChatGPT${plan ? ` ${plan}` : ""} · conectado`} title={`ChatGPT${plan ? ` ${plan}` : ""} · conectado`} className={cn("relative flex items-center justify-center gap-2 text-ink transition-colors", compact ? "control size-[32px] rounded-[10px] p-0 text-[13.5px] hover:border-line-strong" : "home-pill home-account px-4")}>
           <Icon icon={AiChat02Icon} className="size-4 shrink-0" />
           {compact && <span className="absolute right-1 top-1 flex size-1.5">
@@ -73,47 +68,13 @@ function AccountMenu({ compact }: { compact: boolean }) {
           </span>}
           {!compact && <><span>ChatGPT</span>{plan && <span className="home-account-plan text-ink-3">{plan}</span>}</>}
         </button>
+        )}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content align="end" sideOffset={8} className="arrasta-pop glass z-50 w-[300px] rounded-[18px] p-2 text-ink outline-none">
           <div className="px-3 pb-3 pt-2.5">
-            <p className="text-[12px] text-ink-3">{auth.mode === "system" ? "Conta do Codex deste computador" : "Conectado com o ChatGPT"}</p>
+            <p className="text-[12px] text-ink-3">{auth.mode === "system" ? "Conta do ChatGPT deste computador" : "Conectado com o ChatGPT"}</p>
             <p className="mt-0.5 truncate text-[14px] font-medium">{auth.email ?? "Conta conectada"}</p>
-          </div>
-          <div className="flex flex-col gap-3 border-t border-line px-3 py-3">
-            <div>
-              <p className="mb-2 text-[12px] text-ink-3">Ritmo do ChatGPT</p>
-              <Segmented
-                label="Ritmo"
-                size="sm"
-                className="w-full"
-                value={settings?.effort ?? "low"}
-                onChange={(effort) => save({ effort })}
-                options={[
-                  { value: "low", label: "Rápido" },
-                  { value: "medium", label: "Equilibrado" },
-                  { value: "high", label: "Caprichado" },
-                ]}
-              />
-            </div>
-            {auth.models.length > 0 && (
-              <div>
-                <p className="mb-2 text-[12px] text-ink-3">Modelo</p>
-                <select
-                  value={settings?.model ?? ""}
-                  onChange={(e) => save({ model: e.target.value || null })}
-                  className="field h-9 w-full appearance-none px-3 text-[13.5px]"
-                  aria-label="Modelo"
-                >
-                  <option value="">Padrão do ChatGPT</option>
-                  {auth.models.map((m) => (
-                    <option key={m.slug} value={m.slug}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
           <div className="border-t border-line p-1 pt-2">
             <Popover.Close asChild>
@@ -133,7 +94,7 @@ function AccountMenu({ compact }: { compact: boolean }) {
               className="flex h-9 w-full items-center gap-2 rounded-[10px] px-2.5 text-[13.5px] text-ink-2 transition-colors hover:bg-white/[0.06] hover:text-ink"
             >
               <Icon icon={Logout01Icon} className="size-4" />
-              {auth.mode === "system" ? "Parar de usar esta conta" : "Sair"}
+              {auth.mode === "system" ? "Sair" : "Sair"}
             </button>
           </div>
         </Popover.Content>

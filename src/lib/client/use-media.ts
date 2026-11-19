@@ -2,8 +2,9 @@
 
 import { useEffect, useState, type RefObject } from "react";
 
+/** No navegador já nasce com o valor certo; `initial` só vale onde não há janela (os usos atuais montam depois de carregar o projeto). */
 export function useMediaQuery(query: string, initial = true) {
-  const [matches, setMatches] = useState(initial);
+  const [matches, setMatches] = useState(() => (typeof window === "undefined" ? initial : window.matchMedia(query).matches));
   useEffect(() => {
     const list = window.matchMedia(query);
     const update = () => setMatches(list.matches);

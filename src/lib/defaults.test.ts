@@ -1,7 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { defaultWriting, fitSlideWidth, normalizeProject, slideHeight } from "./defaults.ts";
+import { defaultDesign, defaultWriting, fitSlideWidth, makeSlide, normalizeProject, slideHeight, SLIDE_KINDS, TEMPLATES } from "./defaults.ts";
 import type { Project } from "./types.ts";
+
+test("Número e Tabela sobrevivem à abertura em todos os modelos", () => {
+  for (const { id: template } of TEMPLATES) {
+    const slides = [makeSlide({ kind: "stat", title: "73%", body: "Dado fornecido no conteúdo." }), makeSlide({ kind: "table", title: "Comparação", body: "Item | Valor\nA | 1\nB | 2\nC | 3" })];
+    const project = { id: "tipos", design: defaultDesign({ template }), slides } as Project;
+    const normalized = normalizeProject(project);
+    assert.deepEqual(normalized.slides, slides);
+    assert.equal(normalized.design.template, template);
+  }
+  assert.equal(TEMPLATES[1].id, "manchete");
+  assert.equal(SLIDE_KINDS.find((kind) => kind.id === "stat")?.name, "Número");
+  assert.equal(SLIDE_KINDS.find((kind) => kind.id === "table")?.name, "Tabela");
+});
 
 test("projetos antigos ganham estilos de texto, biblioteca de imagens e proporção", () => {
   const old = {
@@ -32,6 +45,9 @@ test("projetos antigos ganham estilos de texto, biblioteca de imagens e proporç
 test("ajustes de escrita começam no padrão e aceitam mudanças parciais", () => {
   assert.equal(defaultWriting().instructions, "");
   assert.equal(defaultWriting().language, "pt-BR");
+  assert.equal(defaultWriting().method, true);
+  assert.equal(defaultWriting({ emojis: "nunca" }).method, true);
+  assert.equal(defaultWriting({ method: false }).method, false);
   assert.equal(defaultWriting({ emojis: "nunca" }).emojis, "nunca");
   assert.equal(defaultWriting({ emojis: "nunca" }).length, "medio");
 });

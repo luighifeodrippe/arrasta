@@ -7,7 +7,6 @@ const button = cva(
   {
     variants: {
       variant: {
-        primary: "keycap hover:brightness-[1.03]",
         lit: "button-lit",
         glass: "control text-ink hover:border-line-strong hover:bg-white/[0.08]",
         ghost: "border border-transparent text-ink-2 hover:bg-white/[0.06] hover:text-ink",
@@ -22,7 +21,7 @@ const button = cva(
       },
     },
     compoundVariants: [
-      { variant: ["primary", "glass", "ghost", "danger"], className: "active:scale-[0.97] disabled:opacity-45" },
+      { variant: ["glass", "ghost", "danger"], className: "active:scale-[0.97] disabled:opacity-45" },
     ],
     defaultVariants: { variant: "glass", size: "md" },
   },

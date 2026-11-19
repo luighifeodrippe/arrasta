@@ -3,24 +3,25 @@
 import { useStageView } from "./stage-view";
 import { useModKey } from "@/lib/client/shortcut";
 
-import { ArrowLeft01Icon, ArrowLeft02Icon, ArrowRight01Icon, BulbIcon, ClosedCaptionIcon, Download04Icon, FileTextIcon, Image02Icon, PaintBoardIcon, PanelLeftCloseIcon, Redo02Icon, Settings02Icon, TextIcon, Undo02Icon, ViewIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ArrowLeft02Icon, BulbIcon, ChatGptIcon, CheckListIcon, ClosedCaptionIcon, Download04Icon, FileTextIcon, Image02Icon, PaintBoardIcon, PanelLeftCloseIcon, PanelRightOpenIcon, Redo02Icon, TextIcon, Undo02Icon, ViewIcon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { ScrollArea } from "radix-ui";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ThinkingOrb } from "thinking-orbs";
 import { api } from "@/lib/client/api";
+import { useLaunch } from "@/lib/client/launch-store";
 import { useApp } from "@/lib/client/app-store";
 import { useEditor } from "@/lib/client/editor-store";
 import { celebrateFirstCarousel } from "@/lib/client/celebrate";
 import { useMediaQuery } from "@/lib/client/use-media";
 import { download, exportZip, slideToPng, slugify } from "@/lib/client/export";
 import { uploadToSlide } from "@/lib/client/images";
-import { slideHeight } from "@/lib/defaults";
-import type { Project } from "@/lib/types";
-import { ChatGPTAccount } from "../app/ChatGPTAccount";
+import { REMIX_LEVELS, slideHeight } from "@/lib/defaults";
+import type { Project, RemixLevel } from "@/lib/types";
 import { LogoMark } from "../app/Logo";
+import { NewCarouselDialog } from "../app/NewCarouselDialog";
 import { ProfileButton } from "../app/ProfileButton";
 import { Button } from "../ui/button";
 import { cn } from "../ui/cn";
@@ -29,12 +30,14 @@ import { Tip } from "../ui/tooltip";
 import { useAgent } from "./agent-store";
 import { AgentBar } from "./AgentBar";
 import { CaptionPanel, fullCaption } from "./CaptionPanel";
+import { ChatCard } from "./ChatCard";
 import { DesignPanel } from "./DesignPanel";
 import { ExportStage } from "./ExportStage";
 import { ExportDialog } from "./ExportDialog";
 import { ImagesPanel } from "./ImagesPanel";
 import { PostGuide, postGuideHidden } from "./PostGuide";
 import { PreviewDialog } from "./PreviewDialog";
+import { ReviewPanel, usePendingReview } from "./ReviewPanel";
 import { SlidePanel } from "./SlidePanel";
 import { SourcePanel } from "./SourcePanel";
 import { Stage, ViewControls } from "./Stage";
@@ -42,9 +45,10 @@ import { Tour, tourDone } from "./Tour";
 import { useAgentActions } from "./use-agent-actions";
 import { Icon, type IconData } from "@/components/ui/icon";
 
-type Tab = "slide" | "design" | "imagens" | "legenda" | "original";
+type Tab = "slide" | "design" | "imagens" | "legenda" | "revisao" | "original";
 
 const PANEL_KEY = "arrasta:panel-open";
+const CHAT_KEY = "arrasta:chat-open";
 
 export function Editor({ id }: { id: string }) {
   const router = useRouter();
@@ -65,9 +69,16 @@ export function Editor({ id }: { id: string }) {
     };
   }, [id, load]);
 
+  // O carrossel abriu: a tela de começo (missão em tela cheia) entrega o trabalho ao palco.
+  useEffect(() => {
+    if (!missing && project?.id !== id) return;
+    const timer = setTimeout(() => useLaunch.getState().clear(), missing ? 0 : 450);
+    return () => clearTimeout(timer);
+  }, [project?.id, id, missing]);
+
   useAutosave();
   useShortcuts();
-  useAutoStart(params.get("auto"), () => router.replace(`/editor/${id}`));
+  useAutoStart(params.get("auto"), params.get("level"), () => router.replace(`/editor/${id}`));
 
   if (missing) {
     return (
@@ -91,20 +102,20 @@ export function Editor({ id }: { id: string }) {
   return <Workspace />;
 }
 
-/** Painel lateral aberto ou fechado; a escolha fica salva neste navegador. */
-function usePanelOpen(): [boolean, (open: boolean) => void] {
-  const [open, setOpen] = useState(true);
-  useEffect(() => {
+/** Um painel aberto ou fechado (o das ferramentas, o do ChatGPT); a escolha fica salva neste navegador. */
+function usePanelOpen(key: string): [boolean, (open: boolean) => void] {
+  // O editor só monta no navegador, depois de carregar o projeto: dá para ler a escolha já no primeiro quadro.
+  const [open, setOpen] = useState(() => {
     try {
-      if (localStorage.getItem(PANEL_KEY) === "0") setOpen(false);
+      return localStorage.getItem(key) !== "0";
     } catch {
-      // Sem armazenamento: o painel começa aberto.
+      return true; // Sem armazenamento: o painel começa aberto.
     }
-  }, []);
+  });
   const update = (next: boolean) => {
     setOpen(next);
     try {
-      localStorage.setItem(PANEL_KEY, next ? "1" : "0");
+      localStorage.setItem(key, next ? "1" : "0");
     } catch {
       // Sem armazenamento: vale só nesta visita.
     }
@@ -134,7 +145,27 @@ function Workspace() {
   const project = useEditor((s) => s.project)!;
   const desktop = useMediaQuery("(min-width: 1024px)");
   const [tab, setTab] = useState<Tab>(project.slides.length || !project.source ? "slide" : "original");
-  const [panelOpen, setPanelOpen] = usePanelOpen();
+  const [panelOpen, setPanelOpen] = usePanelOpen(PANEL_KEY);
+  // Com espaço na tela, o ChatGPT fica num cartão ao lado do palco; sem espaço, na barra de baixo.
+  const roomy = useMediaQuery("(min-width: 1200px)");
+  const [chatOpen, setChatOpen] = usePanelOpen(CHAT_KEY);
+  const chatDocked = roomy && chatOpen;
+  // Em tela menor cabe um painel por vez ao lado do palco: o ChatGPT fica e o das ferramentas espera.
+  const both = useMediaQuery("(min-width: 1560px)");
+  const panelShown = panelOpen && (both || !chatDocked);
+  // Sem a barra de pedidos embaixo do palco, os cards ganham essa altura (antes de pintar, para não pular).
+  useLayoutEffect(() => {
+    useStageView.setState({ barSpace: chatDocked ? 16 : 112 });
+  }, [chatDocked]);
+  // Sem lugar para os dois, abrir um fecha o outro, e fechar as ferramentas devolve o ChatGPT.
+  const openPanel = (open: boolean) => {
+    setPanelOpen(open);
+    if (!both) setChatOpen(!open);
+  };
+  const openChat = (open: boolean) => {
+    setChatOpen(open);
+    if (open && !both) setPanelOpen(false);
+  };
   const openSettings = useApp((s) => s.openSettings);
   const [preview, setPreview] = useState(false);
   const [tour, setTour] = useState(false);
@@ -160,16 +191,23 @@ function Workspace() {
     };
   }, []);
 
-  const tabs: { value: Tab; label: string; icon: IconData }[] = [
+  const profile = useApp((s) => s.profile);
+  const pending = usePendingReview();
+  const sourceIsText = project.source?.kind === "idea";
+  // Na ordem do caminho: o texto, a cara, as imagens, a legenda, a revisão antes de baixar; a origem fica por último.
+  const tabs: { value: Tab; label: string; icon: IconData; count?: number }[] = [
+    { value: "slide", label: "Roteiro", icon: TextIcon },
     { value: "design", label: "Design", icon: PaintBoardIcon },
-    { value: "slide", label: "Slide", icon: TextIcon },
     { value: "imagens", label: "Imagens", icon: Image02Icon },
     { value: "legenda", label: "Legenda", icon: ClosedCaptionIcon },
-    ...(project.source
-      ? [{ value: "original" as const, label: project.source.kind === "idea" ? "Texto" : "Original", icon: project.source.kind === "idea" ? BulbIcon : FileTextIcon }]
-      : []),
+    ...(project.slides.length ? [{ value: "revisao" as const, label: "Revisão", icon: CheckListIcon, count: pending }] : []),
+    ...(project.source ? [{ value: "original" as const, label: "Origem", icon: sourceIsText ? BulbIcon : FileTextIcon }] : []),
   ];
-  const current = tabs.find((t) => t.value === tab) ?? tabs[1];
+  const current = tabs.find((t) => t.value === tab) ?? tabs[0];
+  const openTab = (value: Tab) => {
+    setTab(value);
+    openPanel(true);
+  };
 
   const panel = (
     <>
@@ -177,110 +215,108 @@ function Workspace() {
       {current.value === "design" && <DesignPanel />}
       {current.value === "imagens" && <ImagesPanel />}
       {current.value === "legenda" && <CaptionPanel />}
+      {current.value === "revisao" && <ReviewPanel onOpen={openTab} />}
       {current.value === "original" && <SourcePanel />}
     </>
   );
 
   return (
-    <div className="flex h-dvh min-w-0 flex-col overflow-hidden">
-      <TopBar onPreview={() => setPreview(true)} />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
-        {desktop && (
-          <>
-            <nav aria-label="Painéis do editor" className="flex w-[56px] shrink-0 flex-col items-center gap-1.5 border-r border-line bg-panel/60 px-2 py-3">
-              {tabs.map((item) => {
-                const active = panelOpen && current.value === item.value;
-                return (
-                  <Tip key={item.value} label={item.label} side="right"><button
-                    onClick={() => {
-                      if (active) setPanelOpen(false);
-                      else {
-                        setTab(item.value);
-                        setPanelOpen(true);
-                      }
-                    }}
-                    aria-pressed={active}
-                    aria-label={item.label}
-                    aria-controls="painel-do-editor"
-                    className={cn(
-                      "grid size-[40px] place-items-center rounded-[10px] transition-colors duration-150",
-                      active ? "bg-white/[0.09] text-ink" : "text-ink-3 hover:bg-white/[0.05] hover:text-ink",
-                    )}
-                  >
-                    <Icon icon={item.icon} className="size-5" />
-                  </button></Tip>
-                );
-              })}
-              <div className="mt-auto"><Tip label="Ajustes" side="right"><button
-                onClick={() => openSettings("perfil")}
-                aria-label="Ajustes"
-                className="grid size-[40px] place-items-center rounded-[10px] text-ink-3 transition-colors duration-150 hover:bg-white/[0.05] hover:text-ink"
-              >
-                <Icon icon={Settings02Icon} className="size-5" />
-              </button></Tip></div>
-            </nav>
-            <aside
-              id="painel-do-editor"
-              aria-label={current.label}
-              inert={!panelOpen}
-              className="shrink-0 overflow-hidden border-r border-line bg-panel/60 transition-[width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
-              style={{ width: panelOpen ? 320 : 0, borderRightWidth: panelOpen ? 1 : 0 }}
-            >
-              <div className="flex h-full w-[320px] flex-col">
-                <div className="flex h-12 shrink-0 items-center justify-between border-b border-line pl-5 pr-2">
-                  <h2 className="text-[14px] font-semibold">{current.label}</h2>
-                  <Tip label="Fechar o painel">
-                    <button onClick={() => setPanelOpen(false)} className="grid size-8 place-items-center rounded-[9px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink" aria-label="Fechar o painel">
-                      <Icon icon={PanelLeftCloseIcon} className="size-4" />
-                    </button>
-                  </Tip>
-                </div>
-                <ScrollArea.Root type="hover" className="min-h-0 flex-1 overflow-hidden">
-                  <ScrollArea.Viewport className="size-full">{panel}</ScrollArea.Viewport>
-                  <ScrollArea.Scrollbar orientation="vertical" className="flex w-2.5 touch-none select-none p-[3px] transition-opacity duration-150 data-[state=hidden]:opacity-0">
-                    <ScrollArea.Thumb className="relative flex-1 rounded-full bg-white/[0.18] transition-colors hover:bg-white/[0.3]" />
-                  </ScrollArea.Scrollbar>
-                </ScrollArea.Root>
+    <div className="flex h-dvh min-w-0 flex-col overflow-hidden lg:flex-row lg:gap-2 lg:p-2">
+      {desktop && (
+        <div className="pane flex shrink-0 overflow-hidden rounded-[18px]">
+          <nav aria-label="Painéis do editor" className="rail">
+            {tabs.map((item) => {
+              const active = panelShown && current.value === item.value;
+              return (
+                <button
+                  key={item.value}
+                  onClick={() => (active ? openPanel(false) : openTab(item.value))}
+                  aria-pressed={active}
+                  aria-controls="painel-do-editor"
+                  className="rail-tab"
+                >
+                  <Icon icon={item.icon} className="size-5" />
+                  {item.label}
+                  {item.count ? <span className="rail-count" aria-label={`${item.count} para ajustar`}>{item.count}</span> : null}
+                </button>
+              );
+            })}
+            <button onClick={() => openSettings("perfil")} className="rail-tab mt-auto" aria-label="Ajustes: perfil, voz e escrita">
+              {profile?.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.avatar} alt="" />
+              ) : (
+                <span className="rail-face">{(profile?.name || "?").charAt(0).toUpperCase()}</span>
+              )}
+              Ajustes
+            </button>
+          </nav>
+          <aside
+            id="painel-do-editor"
+            aria-label={current.label}
+            inert={!panelShown}
+            className="shrink-0 overflow-hidden transition-[width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+            style={{ width: panelShown ? 320 : 0 }}
+          >
+            <div className="flex h-full w-[320px] flex-col border-l border-white/[0.06]">
+              <div className="flex h-[52px] shrink-0 items-center justify-between pl-[22px] pr-3.5">
+                <h2 className="text-[14px] font-semibold tracking-[-0.01em]">{current.label}</h2>
+                <Tip label="Fechar o painel">
+                  <button onClick={() => openPanel(false)} className="work-act" aria-label="Fechar o painel">
+                    <Icon icon={PanelLeftCloseIcon} className="size-4" />
+                  </button>
+                </Tip>
               </div>
-            </aside>
-          </>
-        )}
-
-        <main className="relative h-[60dvh] min-w-0 shrink-0 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
-          <Stage onDownload={(ids) => window.dispatchEvent(new CustomEvent("arrasta:download-selection", { detail: ids }))} />
-          <AgentBar />
-          {desktop && (
-            // Puxador na borda do painel, como no Canva: abre e fecha sem precisar adivinhar.
-            <Tip label={panelOpen ? "Esconder o painel" : `Mostrar o painel (${current.label})`} side="right">
-              <button
-                onClick={() => setPanelOpen(!panelOpen)}
-                aria-label={panelOpen ? "Esconder o painel" : "Mostrar o painel"}
-                aria-controls="painel-do-editor"
-                aria-expanded={panelOpen}
-                className="glass absolute left-0 top-1/2 z-20 grid h-16 w-[18px] -translate-y-1/2 place-items-center rounded-l-none rounded-r-[10px] border-l-0 text-ink-2 transition-[width,color] duration-150 hover:w-[22px] hover:text-ink"
-              >
-                <Icon icon={panelOpen ? ArrowLeft01Icon : ArrowRight01Icon} className="size-3.5" strokeWidth={2.2} />
-              </button>
-            </Tip>
-          )}
-        </main>
-
-        {!desktop && (
-          <div className="flex min-h-0 flex-1 flex-col border-t border-line">
-            <div className="no-scrollbar overflow-x-auto px-4 pt-3">
-              <Segmented label="Painel" size="sm" className="w-full min-w-max" value={current.value} onChange={setTab} options={tabs.map((t) => ({ value: t.value, label: t.label }))} />
+              <ScrollArea.Root type="hover" className="min-h-0 flex-1 overflow-hidden">
+                <ScrollArea.Viewport className="size-full">
+                  <div key={current.value} className="panel-in">{panel}</div>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar orientation="vertical" className="flex w-2 touch-none select-none p-[2px] transition-opacity duration-150 data-[state=hidden]:opacity-0">
+                  <ScrollArea.Thumb className="relative flex-1 rounded-full bg-white/[0.18] transition-colors hover:bg-white/[0.3]" />
+                </ScrollArea.Scrollbar>
+              </ScrollArea.Root>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">{panel}</div>
+          </aside>
+        </div>
+      )}
+
+      <main className={cn("flex h-[62dvh] min-w-0 shrink-0 flex-col overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1", desktop && "pane rounded-[18px]")}>
+        <StageHead onPreview={() => setPreview(true)} desktop={desktop} />
+        <div className={cn("relative min-h-0 flex-1 overflow-hidden", desktop ? "stage-well mx-2 mb-2 rounded-[12px]" : "border-t border-line")}>
+          <Stage onDownload={(ids) => window.dispatchEvent(new CustomEvent("arrasta:download-selection", { detail: ids }))} />
+          {!chatDocked && <AgentBar />}
+        </div>
+      </main>
+
+      {chatDocked && <ChatCard onClose={() => openChat(false)} />}
+      {roomy && !chatOpen && (
+        <Tip label="Abrir o ChatGPT Work" side="left">
+          <button onClick={() => openChat(true)} className="work-tab pane" aria-label="Abrir o ChatGPT Work" aria-expanded={false}>
+            <span className="work-head__mark">
+              <Icon icon={ChatGptIcon} className="size-4" />
+            </span>
+            <span className="work-tab__name">ChatGPT Work</span>
+            <Icon icon={PanelRightOpenIcon} className="mt-auto size-4" />
+          </button>
+        </Tip>
+      )}
+
+      {!desktop && (
+        <div className="flex min-h-0 flex-1 flex-col border-t border-line">
+          <div className="no-scrollbar overflow-x-auto px-4 pt-3">
+            <Segmented label="Painel" size="sm" className="w-full min-w-max" value={current.value} onChange={setTab} options={tabs.map((t) => ({ value: t.value, label: t.count ? `${t.label} · ${t.count}` : t.label }))} />
           </div>
-        )}
-      </div>
+          <div key={current.value} className="panel-in min-h-0 flex-1 overflow-y-auto pt-1">{panel}</div>
+        </div>
+      )}
       <PreviewDialog open={preview} onOpenChange={setPreview} />
       <Tour open={tour} onClose={() => setTour(false)} />
     </div>
   );
 }
 
-function TopBar({ onPreview }: { onPreview: () => void }) {
+/** O nome do carrossel e o que se faz com ele (desfazer, ver, prévia, baixar), em cima dos cards. */
+function StageHead({ onPreview, desktop }: { onPreview: () => void; desktop: boolean }) {
   const modKey = useModKey();
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
@@ -294,7 +330,7 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
   const [initialSelection, setInitialSelection] = useState<string[] | undefined>();
   useEffect(() => {
     const open = (event: Event) => {
-      setInitialSelection((event as CustomEvent<string[]>).detail);
+      setInitialSelection((event as CustomEvent<string[] | undefined>).detail);
       setExportOpen(true);
     };
     window.addEventListener("arrasta:download-selection", open);
@@ -304,6 +340,8 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
   const [lastExport, setLastExport] = useState({ count: 0, caption: "" });
   const toastId = useRef<string | number | null>(null);
   const hasSlides = project.slides.length > 0;
+  const [newOpen, setNewOpen] = useState(false);
+  const working = useAgent((s) => s.running);
 
   const onReady = useCallback(
     async (nodes: HTMLElement[]) => {
@@ -314,13 +352,13 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
         if (current.indices.length === 1) {
           const blob = await slideToPng(nodes[0]);
           download(blob, `${slugify(snapshot.title)}-${String(current.indices[0] + 1).padStart(2, "0")}.png`);
-          toast.success("Slide baixado", { id: toastId.current ?? undefined });
+          toast.success("Card baixado", { id: toastId.current ?? undefined });
         } else {
           await exportZip(nodes, snapshot.title, fullCaption(snapshot.caption, snapshot.hashtags), (done, total) =>
-            toast.loading(`Gerando ${done}/${total} slides…`, { id: toastId.current ?? undefined }),
+            toast.loading(`Gerando ${done}/${total} cards…`, { id: toastId.current ?? undefined }),
             current.indices,
           );
-          toast.success(`${nodes.length} slides baixados em 1080×${slideHeight(snapshot.design.size)}`, { id: toastId.current ?? undefined });
+          toast.success(`${nodes.length} cards baixados em 1080×${slideHeight(snapshot.design.size)}`, { id: toastId.current ?? undefined });
         }
         setLastExport({ count: current.indices.length, caption: fullCaption(snapshot.caption, snapshot.hashtags) });
         if (!postGuideHidden()) setPostGuide(true);
@@ -337,25 +375,32 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
     const indices = [...new Set(selection)].filter((index) => Number.isInteger(index) && index >= 0 && index < project.slides.length).sort((a, b) => a - b);
     if (!indices.length || exporting) return;
     setExportOpen(false);
-    toastId.current = toast.loading(indices.length > 1 ? "Preparando os slides…" : "Preparando o slide…");
+    toastId.current = toast.loading(indices.length > 1 ? "Preparando os cards…" : "Preparando o card…");
     setExporting({ indices, project: structuredClone(project) });
   };
 
   return (
-    <header className="flex h-[48px] min-w-0 shrink-0 items-center gap-1.5 border-b border-line px-2 sm:px-3">
+    <header className="stage-head @container">
       <Tip label="Seus carrosséis">
-        <Link href="/" className="flex h-8 shrink-0 items-center gap-1 rounded-[9px] px-1 text-ink-2 transition-colors hover:bg-white/[0.06] hover:text-ink" aria-label="Voltar para o início">
+        <Link href="/" className="flex h-9 shrink-0 items-center gap-1 rounded-[10px] px-1.5 text-ink-2 transition-colors hover:bg-white/[0.06] hover:text-ink" aria-label="Voltar para o início">
           <Icon icon={ArrowLeft02Icon} className="size-4" />
           <LogoMark size={24} />
         </Link>
       </Tip>
+      <Tip label="Novo carrossel: de um link, de um texto ou de prints">
+        <button type="button" className="chip-key" onClick={() => setNewOpen(true)} disabled={working} aria-label="Novo carrossel">
+          <Icon icon={Add01Icon} className="size-3.5" />
+          <span className="hidden @[820px]:inline">Novo</span>
+        </button>
+      </Tip>
+      <NewCarouselDialog open={newOpen} onOpenChange={setNewOpen} />
       <input
         value={project.title}
         onChange={(e) => setTitle(e.target.value)}
-        className="h-8 min-w-0 max-w-[340px] flex-1 truncate rounded-[9px] border border-transparent bg-transparent px-2 text-[13px] font-medium outline-none transition-colors hover:border-white/[0.08] focus:border-white/[0.18] focus:bg-white/[0.04]"
+        className="h-9 min-w-0 max-w-[320px] flex-1 truncate rounded-[10px] border border-transparent bg-transparent px-2 text-[14px] font-semibold tracking-[-0.01em] outline-none transition-colors hover:bg-white/[0.04] focus:bg-black/30 focus:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.2)]"
         aria-label="Nome do carrossel"
       />
-      <div className="ml-1 hidden items-center gap-0.5 sm:flex">
+      <div className="hidden shrink-0 items-center gap-0.5 @[460px]:flex">
         <Tip label={`Desfazer (${modKey}Z)`}>
           <Button size="icon-sm" variant="ghost" onClick={undo} disabled={!canUndo} aria-label="Desfazer">
             <Icon icon={Undo02Icon} />
@@ -367,22 +412,23 @@ function TopBar({ onPreview }: { onPreview: () => void }) {
           </Button>
         </Tip>
       </div>
-      {hasSlides && (
-        <div className="ml-1 hidden md:block">
-          <ViewControls />
-        </div>
-      )}
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        <ProfileButton compact />
-        <ChatGPTAccount compact />
-        <Tip label="Prévia"><Button variant="ghost" size="icon-sm" className="h-[32px] w-[32px] sm:w-auto sm:px-3 sm:text-[13px]" aria-label="Prévia" onClick={onPreview} disabled={!hasSlides}>
-          <Icon icon={ViewIcon} />
-          <span className="hidden sm:inline">Prévia</span>
-        </Button></Tip>
-        <Tip label="Baixar"><Button data-tour="export" variant="primary" size="icon-sm" className="h-[32px] w-[32px] sm:w-auto sm:px-3 sm:text-[13px]" aria-label="Baixar" onClick={() => { setInitialSelection(undefined); setExportOpen(true); }} disabled={!hasSlides || exporting !== null}>
+        {hasSlides && (
+          <div className="hidden @[720px]:block">
+            <ViewControls />
+          </div>
+        )}
+        {!desktop && <ProfileButton compact />}
+        <Tip label="Ver como fica no Instagram">
+          <Button variant="glass" size="sm" className="w-9 px-0 @[560px]:w-auto @[560px]:px-3" aria-label="Prévia" onClick={onPreview} disabled={!hasSlides}>
+            <Icon icon={ViewIcon} />
+            <span className="hidden @[560px]:inline">Prévia</span>
+          </Button>
+        </Tip>
+        <Button data-tour="export" variant="lit" size="sm" className="w-9 px-0 @[560px]:w-auto @[560px]:px-3.5" aria-label="Baixar" onClick={() => { setInitialSelection(undefined); setExportOpen(true); }} disabled={!hasSlides || exporting !== null}>
           <Icon icon={Download04Icon} />
-          <span className="hidden sm:inline">Baixar</span>
-        </Button></Tip>
+          <span className="hidden @[560px]:inline">Baixar</span>
+        </Button>
       </div>
       <ExportDialog initialSelection={initialSelection} open={exportOpen} onOpenChange={setExportOpen} project={project} selectedId={selectedId} onExport={startExport} />
       {exporting && <ExportStage project={exporting.project} indices={exporting.indices} onReady={onReady} />}
@@ -480,7 +526,7 @@ function useShortcuts() {
 }
 
 /** Vindo da home com um link ou ideia, já começa a trabalhar (ou espera o login). */
-function useAutoStart(auto: string | null, clear: () => void) {
+function useAutoStart(auto: string | null, level: string | null, clear: () => void) {
   const project = useEditor((s) => s.project);
   const connected = useApp((s) => s.auth?.connected);
   const authLoaded = useApp((s) => s.auth !== null);
@@ -502,6 +548,6 @@ function useAutoStart(auto: string | null, clear: () => void) {
     }
     started.current = true;
     clear();
-    void generate(auto);
-  }, [auto, project, connected, authLoaded, generate, clear, setLoginOpen]);
+    void generate(auto, auto === "remix" && REMIX_LEVELS.some((item) => item.id === level) ? { level: level as RemixLevel } : {});
+  }, [auto, level, project, connected, authLoaded, generate, clear, setLoginOpen]);
 }

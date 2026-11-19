@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft02Icon, ArrowRight02Icon, Moon02Icon, Sun03Icon, TextAlignCenterIcon, TextAlignJustifyLeftIcon, TextAlignLeftIcon, TextAlignRightIcon } from "@hugeicons/core-free-icons";
-import { useState } from "react";
+import { Moon02Icon, Sun03Icon, TextAlignCenterIcon, TextAlignJustifyLeftIcon, TextAlignLeftIcon, TextAlignRightIcon } from "@hugeicons/core-free-icons";
+import type { ReactNode } from "react";
 import { identityOf, useApp } from "@/lib/client/app-store";
 import { useEditor } from "@/lib/client/editor-store";
-import { ACCENTS, FONTS, fontVar, makeSlide, SLIDE_SIZES, TEMPLATES } from "@/lib/defaults";
+import { ACCENTS, effectiveFont, fontChoice, FONTS, fontVar, makeSlide, MANCHETE_STYLES, NICHE_PALETTES, SLIDE_SIZES, TEMPLATES } from "@/lib/defaults";
 import { SlideCanvas, SlideFrame } from "../slide/SlideCanvas";
 import { cn } from "../ui/cn";
 import { Section } from "../ui/field";
@@ -27,71 +27,78 @@ export function DesignPanel() {
   const index = Math.max(0, project.slides.findIndex((s) => s.id === selectedId));
   const sample = project.slides[index] ?? DEMO;
   const identity = identityOf(profile);
-  const [templatePage, setTemplatePage] = useState(() => Math.floor(Math.max(0, TEMPLATES.findIndex((t) => t.id === design.template)) / 3));
-  const pageCount = Math.ceil(TEMPLATES.length / 3);
 
   return (
     <div>
-      <Section title="Modelo" action={
-        <div className="flex items-center gap-1">
-          <span className="mr-1 text-[11px] tabular-nums text-ink-3">{templatePage + 1}/{pageCount}</span>
-          <button aria-label="Modelos anteriores" disabled={templatePage === 0} onClick={() => setTemplatePage((page) => page - 1)} className="grid size-[28px] place-items-center rounded-[7px] text-ink-2 hover:bg-white/[0.07] disabled:opacity-30">
-            <Icon icon={ArrowLeft02Icon} className="size-[14px]" />
-          </button>
-          <button aria-label="Próximos modelos" disabled={templatePage === pageCount - 1} onClick={() => setTemplatePage((page) => page + 1)} className="grid size-[28px] place-items-center rounded-[7px] text-ink-2 hover:bg-white/[0.07] disabled:opacity-30">
-            <Icon icon={ArrowRight02Icon} className="size-[14px]" />
-          </button>
-        </div>
-      }>
-        <div className="grid min-w-0 grid-cols-3 gap-2">
-          {TEMPLATES.slice(templatePage * 3, templatePage * 3 + 3).map((t) => {
+      <Section title="Modelo" note="Vale para todos os cards. Para mudar um card só, use a barra em cima dele.">
+        <div className="grid min-w-0 grid-cols-3 gap-x-2 gap-y-2.5">
+          {TEMPLATES.map((t) => {
             const active = design.template === t.id;
             return (
               <button
                 key={t.id}
-                onClick={() => setDesign({ template: t.id })}
+                onClick={() => setDesign(t.id === "manchete" ? { template: t.id, theme: "dark" } : { template: t.id })}
                 aria-pressed={active}
                 aria-label={`Modelo ${t.name}`}
                 title={t.hint}
-                className="group min-w-0 text-left"
+                className="group/model min-w-0 text-left"
               >
                 <div
                   aria-hidden
                   className={cn(
-                    "flex h-[108px] items-center justify-center overflow-hidden rounded-[9px] bg-white/[0.03] p-[4px] transition-shadow duration-200",
-                    active ? "shadow-[0_0_0_2px_rgb(255_255_255/0.9)]" : "shadow-[0_0_0_1px_rgb(255_255_255/0.1)] group-hover:shadow-[0_0_0_1px_rgb(255_255_255/0.28)]",
+                    "well flex h-[112px] items-center justify-center overflow-hidden rounded-[10px] p-[5px] transition-shadow duration-200",
+                    active ? "shadow-[0_0_0_2px_rgb(255_255_255/0.92)]" : "group-hover/model:shadow-[inset_0_1px_2px_rgb(0_0_0/0.5),0_0_0_1px_rgb(255_255_255/0.28)]",
                   )}
                 >
-                  <SlideFrame size={design.size} style={{ maxWidth: 75, flexShrink: 0 }}>
+                  <SlideFrame size={design.size} style={{ maxWidth: 74, flexShrink: 0 }}>
                     <SlideCanvas slide={sample} index={index} total={Math.max(2, project.slides.length)} design={{ ...design, template: t.id }} identity={identity} />
                   </SlideFrame>
                 </div>
-                <p className={cn("mt-1.5 truncate text-[11.5px]", active ? "text-ink" : "text-ink-2")}>{t.name}</p>
+                <p className={cn("mt-1.5 truncate text-[12px] font-medium", active ? "text-ink" : "text-ink-2")}>{t.name}</p>
               </button>
             );
           })}
         </div>
-        <Segmented
-          label="Tema"
-          className="w-full"
-          value={design.theme}
-          onChange={(theme) => setDesign({ theme, background: null })}
-          options={[
-            { value: "light", label: "Claro", icon: <Icon icon={Sun03Icon} /> },
-            { value: "dark", label: "Escuro", icon: <Icon icon={Moon02Icon} /> },
-          ]}
-        />
       </Section>
 
-      <Section title="Proporção">
-        <Segmented
-          label="Proporção do slide"
-          className="w-full"
-          value={design.size}
-          onChange={(size) => setDesign({ size })}
-          options={SLIDE_SIZES.map((option) => ({ value: option.id, label: option.id }))}
-        />
-        <p className="-mt-1 text-[12.5px] leading-relaxed text-ink-3">{SLIDE_SIZES.find((o) => o.id === design.size)?.hint}.</p>
+      <Section title="Aparência">
+        <Row label="Tema">
+          <Segmented
+            label="Tema"
+            size="sm"
+            className="w-full"
+            value={design.theme}
+            onChange={(theme) => setDesign({ theme, background: null })}
+            options={[
+              { value: "light", label: "Claro", icon: <Icon icon={Sun03Icon} /> },
+              { value: "dark", label: "Escuro", icon: <Icon icon={Moon02Icon} /> },
+            ]}
+          />
+        </Row>
+        <Row label="Proporção">
+          <Segmented
+            label="Proporção do card"
+            size="sm"
+            className="w-full"
+            value={design.size}
+            onChange={(size) => setDesign({ size })}
+            options={SLIDE_SIZES.map((option) => ({ value: option.id, label: option.id }))}
+          />
+        </Row>
+        <p className="panel-note">{SLIDE_SIZES.find((o) => o.id === design.size)?.hint}.</p>
+        {design.template === "manchete" && (
+          <>
+            <Segmented
+              label="Estilo do modelo"
+              size="sm"
+              className="w-full"
+              value={design.style}
+              onChange={(style) => setDesign({ style, titleFont: null, bodyFont: null })}
+              options={MANCHETE_STYLES.map((option) => ({ value: option.id, label: option.name }))}
+            />
+            <p className="panel-note">{MANCHETE_STYLES.find((option) => option.id === design.style)?.hint}.</p>
+          </>
+        )}
       </Section>
 
       <Section title="Fonte">
@@ -99,14 +106,14 @@ export function DesignPanel() {
           {FONTS.map((f) => (
             <button
               key={f.id}
-              onClick={() => setDesign({ font: f.id, titleFont: null, bodyFont: null })}
-              aria-pressed={design.font === f.id}
+              onClick={() => setDesign(fontChoice(design, f.id))}
+              aria-pressed={effectiveFont(design, "title") === f.id}
               className={cn(
-                "flex h-16 flex-col items-center justify-center gap-0.5 rounded-[12px] border transition-colors",
-                design.font === f.id ? "selected text-ink" : "border-white/[0.08] text-ink-2 hover:border-white/[0.16] hover:text-ink",
+                "flex h-[58px] flex-col items-center justify-center gap-0.5 rounded-[11px] border transition-colors",
+                effectiveFont(design, "title") === f.id ? "selected text-ink" : "border-transparent bg-black/20 text-ink-2 hover:bg-white/[0.06] hover:text-ink",
               )}
             >
-              <span style={{ fontFamily: fontVar(f.id), fontWeight: f.weight, fontSize: 22, lineHeight: 1 }}>Aa</span>
+              <span style={{ fontFamily: fontVar(f.id), fontWeight: f.weight, fontSize: 20, lineHeight: 1 }}>Aa</span>
               <span className="max-w-full truncate px-1 text-[11px]">{f.name}</span>
             </button>
           ))}
@@ -119,6 +126,27 @@ export function DesignPanel() {
             <p className="mb-2 text-[12.5px] text-ink-2">Destaque</p>
             <Swatches value={design.accent} onChange={(accent) => setDesign({ accent: accent ?? "#ff3500" })} colors={ACCENTS} label="Cor de destaque" />
           </div>
+          {design.template === "manchete" && (
+            <div>
+              <p className="mb-2 text-[12.5px] text-ink-2">Cores por nicho</p>
+              <div className="flex flex-wrap gap-1.5">
+                {NICHE_PALETTES.map((palette) => {
+                  const active = design.surfaces?.dark === palette.dark && design.accent === palette.accent;
+                  return (
+                    <button
+                      key={palette.id}
+                      aria-pressed={active}
+                      onClick={() => setDesign(active ? { surfaces: null } : { accent: palette.accent, surfaces: { light: palette.light, dark: palette.dark } })}
+                      className={cn("flex h-[30px] items-center gap-1.5 rounded-full border px-2.5 text-[12.5px] transition-colors", active ? "selected text-ink" : "control text-ink-2 hover:text-ink")}
+                    >
+                      <span aria-hidden className="size-3 rounded-full" style={{ background: palette.accent }} />
+                      {palette.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {design.template !== "foto" && (
             <div>
               <p className="mb-2 text-[12.5px] text-ink-2">Fundo</p>
@@ -130,7 +158,7 @@ export function DesignPanel() {
 
       <Section title="Texto">
         <Range
-          label="Tamanho"
+          label="Tamanho do texto"
           value={design.textScale}
           min={0.8}
           max={1.3}
@@ -139,7 +167,7 @@ export function DesignPanel() {
           onChange={(textScale) => setDesign({ textScale })}
         />
         <Segmented
-          label="Alinhamento de todos os slides"
+          label="Alinhamento de todos os cards"
           className="w-full"
           value={design.align}
           onChange={(align) => {
@@ -158,10 +186,20 @@ export function DesignPanel() {
       <Section title="Mostrar">
         <div className="-my-1 flex flex-col">
           <Toggle label="Sua foto e @" checked={design.showProfile} onChange={(showProfile) => setDesign({ showProfile })} />
-          <Toggle label="Número do slide" checked={design.showCounter} onChange={(showCounter) => setDesign({ showCounter })} />
+          <Toggle label="Número do card" checked={design.showCounter} onChange={(showCounter) => setDesign({ showCounter })} />
           <Toggle label="“Arrasta pro lado” na capa" checked={design.showSwipe} onChange={(showSwipe) => setDesign({ showSwipe })} />
         </div>
       </Section>
+    </div>
+  );
+}
+
+/** Uma linha de ajuste: o nome à esquerda, o controle ocupando o resto. */
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-2">
+      <span className="text-[12.5px] text-ink-2">{label}</span>
+      {children}
     </div>
   );
 }

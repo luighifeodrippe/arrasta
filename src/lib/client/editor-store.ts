@@ -12,6 +12,13 @@ interface EditorState {
   project: Project | null;
   selectedId: string | null;
   selection: string[];
+  /**
+   * Os cards que a pessoa escolheu de propósito no palco, na ordem do carrossel. É o que acompanha o pedido ao
+   * ChatGPT Work. Abrir o carrossel ou criar um slide não escolhe nada: sem escolha, o pedido vale para tudo.
+   */
+  picked: string[];
+  /** Tira um card do pedido sem mexer na seleção do palco. */
+  unpick: (id: string) => void;
   setSelection: (ids: string[]) => void;
   toggleInSelection: (id: string) => void;
   clearSelection: () => void;
@@ -33,6 +40,10 @@ interface EditorState {
   addChat: (entry: ChatEntry) => void;
   /** Volta o carrossel para como estava antes de uma resposta (dá para desfazer). */
   restore: (entryId: string) => void;
+  /** Guarda a conversa aberta e começa uma em branco. */
+  newTalk: () => void;
+  /** Abre uma conversa guardada; a que estava aberta vai para as guardadas. */
+  openTalk: (id: string) => void;
   select: (id: string | null) => void;
   setTitle: (title: string) => void;
   setDesign: (patch: Partial<Design>) => void;
@@ -67,6 +78,20 @@ const snapshot = (p: Project): Snapshot => ({
 
 const HISTORY = 80;
 
+/** As conversas guardadas com a que está aberta na frente (as 12 mais recentes). */
+function shelve(project: Project) {
+  const talks = project.talks ?? [];
+  if (!project.chat.length) return talks;
+  // Sem o "antes" de cada resposta: desfazer só vale na conversa aberta, e o arquivo do carrossel não incha.
+  const entries = project.chat.map((entry) => (entry.before ? { ...entry, before: null } : entry));
+  return [{ id: uid(), at: project.chat[project.chat.length - 1].at, entries }, ...talks].slice(0, 12);
+}
+
+/** Só os ids de slides que ainda existem. */
+const alive = (ids: string[], slides: Slide[]) => ids.filter((id) => slides.some((slide) => slide.id === id));
+/** Os mesmos ids, na ordem em que os slides aparecem. */
+const inOrder = (ids: string[], slides: Slide[]) => slides.filter((slide) => ids.includes(slide.id)).map((slide) => slide.id);
+
 export const useEditor = create<EditorState>((set, get) => {
   /** Aplica uma mudança. Mudanças seguidas com a mesma chave (digitação) viram um passo só. */
   const commit = (next: Partial<Snapshot>, key?: string) => {
@@ -76,7 +101,7 @@ export const useEditor = create<EditorState>((set, get) => {
     const merge = key && key === lastKey && now - lastAt < 1200;
     set({
       project: { ...project, ...next },
-      ...(next.slides ? { selection: get().selection.filter((id) => next.slides!.some((s) => s.id === id)) } : {}),
+      ...(next.slides ? { selection: alive(get().selection, next.slides), picked: alive(get().picked, next.slides) } : {}),
       past: merge ? past : [...past, snapshot(project)].slice(-HISTORY),
       future: [],
       revision: get().revision + 1,
@@ -89,6 +114,8 @@ export const useEditor = create<EditorState>((set, get) => {
     project: null,
     selectedId: null,
     selection: [],
+    picked: [],
+    unpick: (id) => set({ picked: get().picked.filter((value) => value !== id) }),
     past: [],
     future: [],
     revision: 0,
@@ -96,7 +123,7 @@ export const useEditor = create<EditorState>((set, get) => {
     lastAt: 0,
 
     load: (project) =>
-      set({ project, selection: [], selectedId: project.slides[0]?.id ?? null, past: [], future: [], revision: 0, lastKey: null, lastAt: 0 }),
+      set({ project, selection: [], picked: [], selectedId: project.slides[0]?.id ?? null, past: [], future: [], revision: 0, lastKey: null, lastAt: 0 }),
 
     replace: (patch, select = "first") => {
       const { project, past, selectedId } = get();
@@ -106,7 +133,8 @@ export const useEditor = create<EditorState>((set, get) => {
       const keep = select === "keep" && next.slides.some((s) => s.id === selectedId);
       set({
         project: next,
-        selection: get().selection.filter((id) => next.slides.some((s) => s.id === id)),
+        selection: alive(get().selection, next.slides),
+        picked: alive(get().picked, next.slides),
         past: project.slides.length ? [...past, snapshot(project)].slice(-HISTORY) : past,
         future: [],
         revision: get().revision + 1,
@@ -135,14 +163,31 @@ export const useEditor = create<EditorState>((set, get) => {
       if (!entry.before.slides.some((s) => s.id === selectedId)) set({ selectedId: entry.before.slides[0]?.id ?? null });
     },
 
-    select: (id) => set({ selectedId: id, selection: [] }),
-    setSelection: (ids) => set({ selection: [...new Set(ids)].filter((id) => get().project?.slides.some((s) => s.id === id)) }),
+    newTalk: () => {
+      const { project } = get();
+      if (!project || !project.chat.length) return;
+      set({ project: { ...project, chat: [], talks: shelve(project) }, revision: get().revision + 1 });
+    },
+
+    openTalk: (id) => {
+      const { project } = get();
+      const talk = project?.talks?.find((item) => item.id === id);
+      if (!project || !talk) return;
+      set({ project: { ...project, chat: talk.entries, talks: shelve(project).filter((item) => item.id !== id) }, revision: get().revision + 1 });
+    },
+
+    select: (id) => set({ selectedId: id, selection: [], picked: id ? [id] : [] }),
+    setSelection: (ids) => {
+      const slides = get().project?.slides ?? [];
+      const selection = alive([...new Set(ids)], slides);
+      set({ selection, picked: inOrder(selection, slides) });
+    },
     toggleInSelection: (id) => {
       const { selection, selectedId, setSelection } = get();
       const current = selection.length ? selection : selectedId ? [selectedId] : [];
       setSelection(current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
     },
-    clearSelection: () => set({ selection: [] }),
+    clearSelection: () => set({ selection: [], picked: [] }),
     duplicateSlides: (ids) => {
       const { project } = get();
       if (!project) return;
@@ -303,7 +348,8 @@ export const useEditor = create<EditorState>((set, get) => {
       const previous = past[past.length - 1];
       set({
         project: { ...project, ...previous },
-        selection: get().selection.filter((id) => previous.slides.some((s) => s.id === id)),
+        selection: alive(get().selection, previous.slides),
+        picked: alive(get().picked, previous.slides),
         past: past.slice(0, -1),
         future: [snapshot(project), ...future],
         revision: get().revision + 1,
@@ -319,7 +365,8 @@ export const useEditor = create<EditorState>((set, get) => {
       const next = future[0];
       set({
         project: { ...project, ...next },
-        selection: get().selection.filter((id) => next.slides.some((s) => s.id === id)),
+        selection: alive(get().selection, next.slides),
+        picked: alive(get().picked, next.slides),
         past: [...past, snapshot(project)],
         future: future.slice(1),
         revision: get().revision + 1,

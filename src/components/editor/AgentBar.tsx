@@ -12,10 +12,10 @@ import type { ChatEntry, Slide } from "@/lib/types";
 import { cn } from "../ui/cn";
 import { Tip } from "../ui/tooltip";
 import { useAgent } from "./agent-store";
+import { askTarget, suggestionsFor } from "./suggestions";
 import { useAgentActions } from "./use-agent-actions";
 import { Icon } from "@/components/ui/icon";
 
-const SUGGESTIONS = ["Gancho mais forte", "Deixe mais curto", "Mais provocativo", "Adicione um exemplo prático", "Traduza para inglês"];
 const EASE = [0.23, 1, 0.32, 1] as const;
 
 /**
@@ -29,7 +29,7 @@ const REVEAL = {
   transition: { duration: 0.3, ease: EASE },
 };
 
-function useElapsed(startedAt: number, running: boolean) {
+export function useElapsed(startedAt: number, running: boolean) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!running) return;
@@ -44,10 +44,10 @@ function changedLabel(ids: string[], slides: Slide[]): { label: string; indexes:
   const indexes = ids.map((id) => slides.findIndex((s) => s.id === id)).filter((i) => i >= 0).sort((a, b) => a - b);
   if (!indexes.length) return null;
   const all = indexes.length === slides.length && slides.length > 2;
-  return { label: all ? "Todos os slides" : indexes.length > 1 ? "Slides" : "Slide", indexes, all };
+  return { label: all ? "Todos os cards" : indexes.length > 1 ? "Cards" : "Card", indexes, all };
 }
 
-function ChangedChips({ ids, slides, onSelect, max }: { ids: string[]; slides: Slide[]; onSelect: (id: string) => void; max: number }) {
+export function ChangedChips({ ids, slides, onSelect, max }: { ids: string[]; slides: Slide[]; onSelect: (id: string) => void; max: number }) {
   const changed = changedLabel(ids, slides);
   if (!changed) return null;
   return (
@@ -59,7 +59,7 @@ function ChangedChips({ ids, slides, onSelect, max }: { ids: string[]; slides: S
             key={i}
             onClick={() => onSelect(slides[i].id)}
             className="rounded-[6px] bg-white/[0.08] px-1.5 py-px font-medium tabular-nums text-ink-2 transition-colors hover:bg-white/[0.14] hover:text-ink"
-            aria-label={`Ir para o slide ${i + 1}`}
+            aria-label={`Ir para o card ${i + 1}`}
           >
             {i + 1}
           </button>
@@ -68,10 +68,9 @@ function ChangedChips({ ids, slides, onSelect, max }: { ids: string[]; slides: S
   );
 }
 
-/** Conversa com o ChatGPT sobre o carrossel: pedido, andamento, o que mudou e como voltar. */
+/** Conversa com o ChatGPT Work sobre o carrossel, na barra de baixo (telas estreitas ou cartão fechado). */
 export function AgentBar() {
   const project = useEditor((s) => s.project)!;
-  const selectedId = useEditor((s) => s.selectedId);
   const running = useAgent((s) => s.running);
   const kind = useAgent((s) => s.kind);
   const status = useAgent((s) => s.status);
@@ -81,9 +80,11 @@ export function AgentBar() {
   const chatOpen = useAgent((s) => s.chatOpen);
   const setChatOpen = useAgent((s) => s.setChatOpen);
   const { edit } = useAgentActions();
-  const [text, setText] = useState("");
+  const text = useAgent((s) => s.draft);
+  const setText = useAgent((s) => s.setDraft);
   const [focused, setFocused] = useState(false);
-  const [scope, setScope] = useState<"all" | "slide">("all");
+  const picked = useEditor((s) => s.picked);
+  const clearSelection = useEditor((s) => s.clearSelection);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -91,7 +92,8 @@ export function AgentBar() {
   const wide = barWidth >= 560;
   const roomy = barWidth >= 660;
   const elapsed = useElapsed(startedAt, running);
-  const index = project.slides.findIndex((s) => s.id === selectedId);
+  const focusIndexes = project.slides.flatMap((slide, position) => (picked.includes(slide.id) ? [position] : []));
+  const focusLabel = focusIndexes.length === 1 ? `Card ${focusIndexes[0] + 1}` : `${focusIndexes.length} cards`;
   const hasSlides = project.slides.length > 0;
   const chat = project.chat;
   const lastReply = useMemo(() => [...chat].reverse().find((e) => e.role === "assistant") ?? null, [chat]);
@@ -102,7 +104,7 @@ export function AgentBar() {
   const send = async (request: string) => {
     if (!request.trim() || running) return;
     setText("");
-    const ok = await edit(request, scope === "slide" && index >= 0 ? index : null);
+    const ok = await edit(request);
     if (!ok) setText(request);
   };
 
@@ -116,7 +118,7 @@ export function AgentBar() {
           {showReply && lastReply && <LastReply key={`reply-${lastReply.id}`} entry={lastReply} onDismiss={dismissReply} onOpen={() => setChatOpen(true)} />}
           {focused && !running && hasSlides && !text && !chatOpen && !showReply && (
             <div key="suggestions" className="no-scrollbar flex gap-1.5 overflow-x-auto">
-              {SUGGESTIONS.map((s, i) => (
+              {suggestionsFor(askTarget(focusIndexes)).map((s, i) => (
                 <motion.button
                   key={s}
                   initial={{ opacity: 0, y: 6 }}
@@ -125,7 +127,7 @@ export function AgentBar() {
                   transition={{ duration: 0.18, ease: EASE, delay: i * 0.02 }}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => send(s)}
-                  className="glass h-8 shrink-0 rounded-full px-3 text-[12.5px] text-ink-2 transition-colors hover:text-ink"
+                  className="chip-key"
                 >
                   {s}
                 </motion.button>
@@ -160,43 +162,21 @@ export function AgentBar() {
                 }}
                 className="flex items-end gap-1.5"
               >
-                {hasSlides && index >= 0 &&
-                  (wide ? (
-                    <div role="radiogroup" aria-label="O pedido vale para" className="mb-1.5 ml-1 flex h-8 shrink-0 items-center rounded-[10px] bg-white/[0.05] p-0.5 text-[12px]">
-                      {(
-                        [
-                          ["all", "Carrossel"],
-                          ["slide", `Slide ${index + 1}`],
-                        ] as const
-                      ).map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          role="radio"
-                          aria-checked={scope === value}
-                          onClick={() => {
-                            setScope(value);
-                            inputRef.current?.focus();
-                          }}
-                          className={cn(
-                            "h-7 rounded-[8px] px-2.5 font-medium tabular-nums transition-colors",
-                            scope === value ? "bg-white/[0.14] text-ink" : "text-ink-3 hover:text-ink",
-                          )}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setScope(scope === "all" ? "slide" : "all")}
-                      aria-label={scope === "all" ? "Pedido vale para o carrossel todo. Tocar para só o slide atual" : `Pedido vale só para o slide ${index + 1}. Tocar para o carrossel todo`}
-                      className="mb-1.5 ml-1 h-8 shrink-0 rounded-[10px] bg-white/[0.08] px-2.5 text-[12px] font-medium tabular-nums text-ink"
-                    >
-                      {scope === "all" ? "Tudo" : `S${index + 1}`}
-                    </button>
-                  ))}
+                {hasSlides && (
+                  // O pedido vale para os cards escolhidos no palco; tocar aqui devolve o pedido ao carrossel todo.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (picked.length) clearSelection();
+                      inputRef.current?.focus();
+                    }}
+                    aria-label={picked.length ? `O pedido vale para ${focusLabel}. Tocar para valer para o carrossel todo` : "O pedido vale para o carrossel todo. Escolha um card no palco para valer só para ele"}
+                    aria-pressed={picked.length > 0}
+                    className="chip-key mb-[9px] ml-1.5 tabular-nums"
+                  >
+                    {picked.length === 0 ? (wide ? "Carrossel" : "Tudo") : focusLabel}
+                  </button>
+                )}
                 <textarea
                   ref={inputRef}
                   value={text}
@@ -214,14 +194,14 @@ export function AgentBar() {
                   placeholder={
                     !hasSlides
                       ? wide
-                        ? "Recrie ou escreva um slide para começar"
-                        : "Crie slides"
-                      : scope === "slide"
-                        ? wide ? `O que mudar no slide ${index + 1}?` : `Mudar S${index + 1}?`
+                        ? "Recrie ou escreva um card para começar"
+                        : "Crie cards"
+                      : picked.length
+                        ? wide ? `O que mudar n${picked.length === 1 ? "o" : "os"} ${focusLabel.toLowerCase()}?` : "O que mudar?"
                         : wide ? "Peça uma mudança…" : "Peça algo"
                   }
                   className="max-h-32 min-h-[48px] min-w-0 flex-1 resize-none bg-transparent px-2.5 py-3 text-[14.5px] leading-6 outline-none placeholder:whitespace-nowrap placeholder:text-ink-3 disabled:opacity-60"
-                  aria-label="Pedido para o ChatGPT"
+                  aria-label="Pedido para o ChatGPT Work"
                 />
                 <ModelPicker compact={!roomy} />
                 {chat.length > 0 && (
@@ -231,17 +211,17 @@ export function AgentBar() {
                       onClick={() => setChatOpen(!chatOpen)}
                       aria-pressed={chatOpen}
                       className={cn(
-                        "mb-1 grid size-10 shrink-0 place-items-center rounded-[12px] transition-colors",
-                        chatOpen ? "bg-white/[0.12] text-ink" : "text-ink-2 hover:bg-white/[0.07] hover:text-ink",
+                        "mb-[7px] grid size-[34px] shrink-0 place-items-center rounded-full transition-colors",
+                        chatOpen ? "selected border border-transparent text-ink" : "text-ink-2 hover:bg-white/[0.07] hover:text-ink",
                       )}
-                      aria-label="Conversa com o ChatGPT"
+                      aria-label="Conversa com o ChatGPT Work"
                     >
                       <Icon icon={AiChat02Icon} className="size-[18px]" />
                     </button>
                   </Tip>
                 )}
-                <button type="submit" disabled={!text.trim()} className="keycap mb-0.5 grid size-11 shrink-0 place-items-center rounded-[14px] transition-opacity disabled:opacity-35" aria-label="Enviar">
-                  <Icon icon={ArrowUp02Icon} className="size-5" />
+                <button type="submit" disabled={!text.trim()} data-ready={text.trim() ? "" : undefined} className="key work-send mb-[7px] mr-[7px]" aria-label="Enviar">
+                  <Icon icon={ArrowUp02Icon} className="size-[18px]" />
                 </button>
               </form>
             )}
@@ -304,7 +284,7 @@ function LastReply({ entry, onDismiss, onOpen }: { entry: ChatEntry; onDismiss: 
   );
 }
 
-const time = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
+export const time = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 /** Toda a conversa do projeto, do primeiro pedido ao último. */
 function ChatHistory({
@@ -334,7 +314,7 @@ function ChatHistory({
     <motion.div {...REVEAL} className="glass flex max-h-[min(460px,52vh)] flex-col rounded-[20px]"
     >
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
-        <p className="text-[13.5px] font-medium">Conversa com o ChatGPT</p>
+        <p className="text-[13.5px] font-medium">Conversa com o ChatGPT Work</p>
         <button onClick={onClose} className="grid size-7 place-items-center rounded-[8px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink" aria-label="Fechar a conversa">
           <Icon icon={ArrowDown01Icon} className="size-4" />
         </button>
@@ -344,8 +324,8 @@ function ChatHistory({
           <div className="flex flex-col items-start gap-2.5">
             <p className="text-[13.5px] text-ink-2">Peça qualquer ajuste. Por exemplo:</p>
             <div className="flex flex-wrap gap-1.5">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} onClick={() => onPick(s)} className="h-8 rounded-full bg-white/[0.06] px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-white/[0.1] hover:text-ink">
+              {suggestionsFor("carousel").map((s) => (
+                <button key={s} onClick={() => onPick(s)} className="chip-key">
                   {s}
                 </button>
               ))}
@@ -357,7 +337,7 @@ function ChatHistory({
             <div key={entry.id} className="flex flex-col items-end gap-1">
               <p className="max-w-[85%] whitespace-pre-line rounded-[16px] rounded-br-[6px] bg-white/[0.1] px-3.5 py-2 text-[13.5px] leading-snug text-ink">{entry.text}</p>
               <span className="text-[11.5px] text-ink-3">
-                {entry.scope !== null ? `Slide ${entry.scope + 1} · ` : ""}
+                {entry.scope !== null ? `Card ${entry.scope + 1} · ` : ""}
                 {time.format(new Date(entry.at))}
               </span>
             </div>
@@ -376,7 +356,7 @@ function ChatHistory({
   );
 }
 
-function AssistantEntry({
+export function AssistantEntry({
   entry,
   slides,
   onSelect,
@@ -401,9 +381,9 @@ function AssistantEntry({
         <span>{time.format(new Date(entry.at))}</span>
         {entry.seconds !== null && <span className="tabular-nums">{entry.seconds}s</span>}
         {entry.before && !entry.failed && (
-          <button onClick={() => onRestore(entry.id)} className="flex items-center gap-1 text-ink-2 transition-colors hover:text-ink">
+          <button onClick={() => onRestore(entry.id)} className="control flex h-7 items-center gap-1.5 rounded-full px-2.5 text-ink-2 transition-colors hover:text-ink">
             <Icon icon={Undo02Icon} className="size-3" />
-            Restaurar versão anterior
+            Desfazer
           </button>
         )}
       </div>
